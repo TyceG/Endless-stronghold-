@@ -2,9 +2,18 @@ package dev.tyceg.endlessstronghold;
 
 import dev.tyceg.endlessstronghold.layout.Dir;
 import dev.tyceg.endlessstronghold.layout.LayoutService;
-import dev.tyceg.endlessstronghold.rooms.Geometry;
+import dev.tyceg.endlessstronghold.rooms.Block;
+import dev.tyceg.endlessstronghold.world.DecorationWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootTable;
 import java.util.concurrent.CompletableFuture;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.core.BlockPos;
@@ -100,6 +109,8 @@ final class SmokeTest {
 		long start = System.nanoTime();
 		int chunks = 0;
 		int doorways = 0;
+		Map<ResourceKey<LootTable>, RandomizableContainerBlockEntity> chestPerTable = new HashMap<>();
+		int chests = 0;
 		for (int cx = -RADIUS_CHUNKS; cx <= RADIUS_CHUNKS; cx++) {
 			for (int cz = -RADIUS_CHUNKS; cz <= RADIUS_CHUNKS; cz++) {
 				LevelChunk chunk = level.getChunk(cx, cz);
@@ -112,36 +123,78 @@ final class SmokeTest {
 						}
 					}
 				}
+				for (BlockEntity be : chunk.getBlockEntities().values()) {
+					if (be instanceof RandomizableContainerBlockEntity chest) {
+						chests++;
+						if (chest.getLootTable() == null) {
+							failures.add("chest without a loot table at " + be.getBlockPos().toShortString());
+						} else {
+							chestPerTable.putIfAbsent(chest.getLootTable(), chest);
+						}
+					}
+				}
 			}
 		}
 		long ms = (System.nanoTime() - start) / 1_000_000;
-		EndlessStronghold.LOGGER.info("[smoke] generated {} chunks and checked {} doorways in {} ms", chunks, doorways, ms);
+		EndlessStronghold.LOGGER.info("[smoke] generated {} chunks on {} floors and checked {} doorways in {} ms", chunks, layout.floors(), doorways, ms);
 
 		if (!solid(level, spawn.below()) || !level.getBlockState(spawn).isAir() || !level.getBlockState(spawn.above()).isAir()) {
 			failures.add("no solid floor with two air blocks above at the spawn point " + spawn.toShortString());
 		}
+
+		// Every loot table should turn up, and roll real items the first time a chest is opened.
+		EndlessStronghold.LOGGER.info("[smoke] {} chests, using {} loot tables", chests, chestPerTable.size());
+		for (Block.Loot loot : Block.Loot.values()) {
+			RandomizableContainerBlockEntity chest = chestPerTable.get(DecorationWriter.lootTable(loot));
+			if (chest == null) {
+				failures.add("no " + loot + " chest within " + RADIUS_CHUNKS + " chunks of spawn");
+				continue;
+			}
+			chest.unpackLootTable(null);
+			int stacks = 0;
+			for (int i = 0; i < chest.getContainerSize(); i++) {
+				if (!chest.getItem(i).isEmpty()) {
+					stacks++;
+				}
+			}
+			if (stacks == 0) {
+				failures.add(loot + " chest at " + chest.getBlockPos().toShortString() + " rolled no items");
+			} else {
+				EndlessStronghold.LOGGER.info("[smoke] {} chest at {} rolled {} stacks, e.g. {}", loot, chest.getBlockPos().toShortString(), stacks, firstItem(chest));
+			}
+		}
 	}
 
-	/** A walkable passage through the connector on this side: floor, three blocks of air, ceiling. */
+	private static String firstItem(RandomizableContainerBlockEntity chest) {
+		for (int i = 0; i < chest.getContainerSize(); i++) {
+			if (!chest.getItem(i).isEmpty()) {
+				return chest.getItem(i).toString();
+			}
+		}
+		return "nothing";
+	}
+
+	/**
+	 * A walkable passage through the middle of the connector on this side, and
+	 * the blocks either side of it in both chunks: a floor below, and two blocks
+	 * a player can walk through (air, or a door) above.
+	 */
 	private static void checkConnector(ServerLevel level, LevelChunk chunk, int floorY, Dir side, List<String> failures) {
 		int minX = chunk.getPos().getMinBlockX();
 		int minZ = chunk.getPos().getMinBlockZ();
-		for (int d = Geometry.DOOR_LO; d <= Geometry.DOOR_HI; d++) {
-			BlockPos base = side == Dir.WEST ? new BlockPos(minX, floorY, minZ + d) : new BlockPos(minX + d, floorY, minZ);
-			for (int step = -1; step <= 1; step++) {
-				// The connector itself and the blocks on either side of it, in both chunks.
-				BlockPos p = side == Dir.WEST ? base.offset(step, 0, 0) : base.offset(0, 0, step);
-				boolean ok = solid(level, p)
-					&& level.getBlockState(p.above(1)).isAir()
-					&& level.getBlockState(p.above(2)).isAir()
-					&& level.getBlockState(p.above(3)).isAir()
-					&& solid(level, p.above(4));
-				if (!ok) {
-					failures.add("blocked or open doorway at " + p.above().toShortString() + " (" + side + " side of chunk " + chunk.getPos() + ")");
-					return;
-				}
+		BlockPos base = side == Dir.WEST ? new BlockPos(minX, floorY, minZ + 8) : new BlockPos(minX + 8, floorY, minZ);
+		for (int step = -1; step <= 1; step++) {
+			BlockPos p = side == Dir.WEST ? base.offset(step, 0, 0) : base.offset(0, 0, step);
+			if (!solid(level, p) || !walkable(level, p.above(1)) || !walkable(level, p.above(2))) {
+				failures.add("blocked doorway at " + p.above().toShortString() + " (" + side + " side of chunk " + chunk.getPos() + ")");
+				return;
 			}
 		}
+	}
+
+	private static boolean walkable(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		return state.getCollisionShape(level, pos).isEmpty() || state.getBlock() instanceof DoorBlock;
 	}
 
 	private static boolean solid(ServerLevel level, BlockPos pos) {

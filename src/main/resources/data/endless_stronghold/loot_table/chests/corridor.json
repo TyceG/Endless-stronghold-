@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:chest",
+  "random_sequence": "endless_stronghold:chests/corridor",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:loot_table",
+          "value": "minecraft:chests/stronghold_corridor"
+        }
+      ]
+    }
+  ]
+}

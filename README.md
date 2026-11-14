@@ -6,7 +6,7 @@ The full plan is in [DESIGN.md](DESIGN.md); changes to it are in [DECISIONS.md](
 
 ## Status
 
-**Phase 1 of 4: walkable skeleton.** You spawn in a lit pillar room, and plain stone brick halls run on in every direction, on one floor. Region mazes, the other floors, the room catalog, loot and portal rooms come in later phases.
+**Phase 2 of 4: the real stronghold.** Four floors of vanilla-style stronghold, a maze in every 128 × 128 block area, joined by spiral staircases: halls, libraries, prison halls, fountain rooms, storerooms, pillar rooms, grand crossings and chest halls, with vanilla's doors, cracked, mossy and infested bricks, and chests with stronghold loot. Portal rooms, eyes of ender and the extra loot come in Phase 3.
 
 ## Playing it
 
@@ -26,11 +26,11 @@ Needs JDK 25.
 ./gradlew build
 ```
 
-The jar lands in `build/libs/`. `./gradlew test` runs the layout unit tests.
+The jar lands in `build/libs/`. `./gradlew test` runs the unit tests: the layout, every room, and a walk through 16 × 16 chunks on all floors.
 
 ### Smoke test
 
-`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and every doorway, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
+`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and every doorway on every floor, opens a chest of each loot table, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
 
 ## License
 

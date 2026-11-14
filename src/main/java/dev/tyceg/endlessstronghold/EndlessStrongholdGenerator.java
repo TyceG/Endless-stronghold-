@@ -6,6 +6,8 @@ import dev.tyceg.endlessstronghold.layout.LayoutService;
 import dev.tyceg.endlessstronghold.rooms.Rooms;
 import dev.tyceg.endlessstronghold.rooms.SpawnRoom;
 import dev.tyceg.endlessstronghold.world.ChunkCellWriter;
+import dev.tyceg.endlessstronghold.world.DecorationWriter;
+import net.minecraft.world.level.WorldGenLevel;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -92,11 +94,24 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 		LayoutService layout = layout(randomState.seed());
 		int cx = chunk.getPos().x();
 		int cz = chunk.getPos().z();
-		ChunkCellWriter writer = new ChunkCellWriter(chunk);
+		ChunkCellWriter writer = new ChunkCellWriter(chunk, layout.seed());
 		for (int floor = 0; floor < layout.floors(); floor++) {
 			Rooms.buildCell(layout, cx, cz, floor, writer.atFloor(layout.floorY(floor)));
 		}
 		return CompletableFuture.completedFuture(chunk);
+	}
+
+	@Override
+	public void applyBiomeDecoration(WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
+		// The parent places structure pieces; skipping it would lose them.
+		super.applyBiomeDecoration(level, chunk, structureManager);
+		LayoutService layout = layout(level.getSeed());
+		int cx = chunk.getPos().x();
+		int cz = chunk.getPos().z();
+		DecorationWriter writer = new DecorationWriter(level, chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ(), layout.seed());
+		for (int floor = 0; floor < layout.floors(); floor++) {
+			Rooms.buildCell(layout, cx, cz, floor, writer.atFloor(layout.floorY(floor)));
+		}
 	}
 
 	@Override
