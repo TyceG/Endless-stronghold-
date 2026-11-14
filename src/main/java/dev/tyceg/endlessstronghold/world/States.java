@@ -8,6 +8,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
@@ -20,13 +21,13 @@ import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
 
 /** Maps the layout's blocks to Minecraft block states. */
-final class States {
+public final class States {
 	private static final long WALL_SALT = Hash.salt("wall");
 
 	private States() {
 	}
 
-	static BlockState of(Block block, int x, int y, int z, long seed) {
+	public static BlockState of(Block block, int x, int y, int z, long seed) {
 		Direction facing = block.facing() == null ? Direction.NORTH : direction(block.facing());
 		return switch (block.kind()) {
 			case AIR -> Blocks.CAVE_AIR.defaultBlockState();
@@ -57,13 +58,20 @@ final class States {
 				.setValue(ButtonBlock.FACING, facing)
 				.setValue(ButtonBlock.FACE, AttachFace.WALL);
 			case CHEST -> Blocks.CHEST.defaultBlockState().setValue(ChestBlock.FACING, facing);
+			case STONE -> Blocks.STONE.defaultBlockState();
+			case LAVA -> Blocks.LAVA.defaultBlockState();
+			case END_PORTAL_FRAME -> Blocks.END_PORTAL_FRAME.defaultBlockState()
+				.setValue(EndPortalFrameBlock.FACING, facing)
+				.setValue(EndPortalFrameBlock.HAS_EYE, block.data() == 1);
+			case END_PORTAL -> Blocks.END_PORTAL.defaultBlockState();
+			case SPAWNER -> Blocks.SPAWNER.defaultBlockState();
 		};
 	}
 
 	/** Blocks whose shape depends on their neighbours, or fluids that must start flowing: vanilla re-checks these when the chunk finishes. */
-	static boolean needsPostProcessing(Block block) {
+	public static boolean needsPostProcessing(Block block) {
 		return switch (block.kind()) {
-			case IRON_BARS, OAK_FENCE, LADDER, WALL_TORCH, TORCH, WATER -> true;
+			case IRON_BARS, OAK_FENCE, LADDER, WALL_TORCH, TORCH, WATER, LAVA -> true;
 			default -> false;
 		};
 	}

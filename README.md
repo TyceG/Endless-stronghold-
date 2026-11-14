@@ -6,7 +6,7 @@ The full plan is in [DESIGN.md](DESIGN.md); changes to it are in [DECISIONS.md](
 
 ## Status
 
-**Phase 2 of 4: the real stronghold.** Four floors, 12 blocks apart, a maze in every 128 × 128 block area, joined by vanilla's spiral and straight cobblestone staircases. Every room is a vanilla stronghold piece, block for block: libraries, prison halls, chest corridors, five-way crossings, and pillar, fountain, storeroom and empty room crossings, joined by vanilla-style corridors, with vanilla's doors, cracked, mossy and infested bricks, and chests with stronghold loot. Portal rooms, eyes of ender and the extra loot come in Phase 3.
+**Phase 2 of 4: the real stronghold.** The stronghold grows the way vanilla grows one, piece by piece, with vanilla's rooms block for block, vanilla's weights, limits and rules, and every doorway at its real height. It never ends: the world is split into 256 x 256 block regions, each growing its own stronghold, joined into one by main corridors made of vanilla's pieces. Each region has a portal room; eyes of ender finding it, and the extra loot, come in Phase 3.
 
 ## Playing it
 
@@ -26,11 +26,11 @@ Needs JDK 25.
 ./gradlew build
 ```
 
-The jar lands in `build/libs/`. `./gradlew test` runs the unit tests: the layout, every room, and a walk through 16 × 16 chunks on all floors.
+The jar lands in `build/libs/`. `./gradlew test` runs the unit tests: vanilla's growth rules region by region, the main corridors meeting, and a walk from spawn through two whole regions.
 
 ### Smoke test
 
-`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and every doorway on every floor, opens a chest of each loot table, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
+`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and the portal room's spawner, opens a chest of each loot table, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
 
 ## License
 

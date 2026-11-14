@@ -1,103 +1,99 @@
 package dev.tyceg.endlessstronghold;
 
-import dev.tyceg.endlessstronghold.layout.LayoutService;
+import dev.tyceg.endlessstronghold.gen.Part;
+import dev.tyceg.endlessstronghold.gen.Region;
+import dev.tyceg.endlessstronghold.gen.Stronghold;
 import dev.tyceg.endlessstronghold.rooms.Block;
-import dev.tyceg.endlessstronghold.rooms.CellWriter;
-import dev.tyceg.endlessstronghold.rooms.Geometry;
-import dev.tyceg.endlessstronghold.rooms.Rooms;
+import dev.tyceg.endlessstronghold.rooms.Renderer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * A test stand-in for the world: a square of chunks, every floor, built one
- * cell at a time exactly as the generator does (floors bottom to top in each
- * chunk). Unwritten blocks are null: the void. Grid y 0 is world y -2.
+ * A test stand-in for the world: a rectangle of blocks, built from every
+ * region piece that reaches into it, exactly as the generator builds chunks.
+ * Coordinates are world coordinates; anything unbuilt is null (the void), and
+ * anything outside the rectangle is null too.
  */
 final class World {
-	static final int OFFSET = -Geometry.MIN_Y;
+	static final int MIN_Y = -40;
+	static final int HEIGHT = 120;
 
-	final LayoutService layout;
-	final int minCx;
-	final int minCz;
-	final int size;
-	final int height;
+	final Stronghold stronghold;
+	final int minX;
+	final int minZ;
+	final int sizeX;
+	final int sizeZ;
+	final List<Part> parts = new ArrayList<>();
 	private final byte[] cells;
 	private final List<Block> palette = new ArrayList<>();
 	private final Map<Block, Byte> index = new HashMap<>();
 
-	private World(LayoutService layout, int minCx, int minCz, int size) {
-		this.layout = layout;
-		this.minCx = minCx;
-		this.minCz = minCz;
-		this.size = size;
-		this.height = OFFSET + layout.floorY(layout.floors() - 1) + Geometry.MAX_Y + 2;
-		this.cells = new byte[size * 16 * height * size * 16];
+	private World(Stronghold stronghold, int minX, int minZ, int sizeX, int sizeZ) {
+		this.stronghold = stronghold;
+		this.minX = minX;
+		this.minZ = minZ;
+		this.sizeX = sizeX;
+		this.sizeZ = sizeZ;
+		this.cells = new byte[sizeX * HEIGHT * sizeZ];
 		palette.add(null);
 	}
 
-	static World build(LayoutService layout, int minCx, int minCz, int size) {
-		World world = new World(layout, minCx, minCz, size);
-		for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				for (int f = 0; f < layout.floors(); f++) {
-					Rooms.buildCell(layout, minCx + i, minCz + j, f, world.cell(i, j, f));
+	static World build(Stronghold stronghold, int minX, int minZ, int sizeX, int sizeZ) {
+		World world = new World(stronghold, minX, minZ, sizeX, sizeZ);
+		int maxX = minX + sizeX - 1;
+		int maxZ = minZ + sizeZ - 1;
+		for (int rx = Region.regionOf(minX); rx <= Region.regionOf(maxX); rx++) {
+			for (int rz = Region.regionOf(minZ); rz <= Region.regionOf(maxZ); rz++) {
+				Region region = stronghold.region(rx, rz);
+				for (Part part : region.parts) {
+					if (part.box.intersectsXZ(minX, minZ, maxX, maxZ)) {
+						world.parts.add(part);
+						Renderer.render(part, world::put);
+					}
+				}
+				for (long plug : region.plugs) {
+					world.put(Region.unpackX(plug), Region.unpackY(plug), Region.unpackZ(plug), Block.STONE);
 				}
 			}
 		}
 		return world;
 	}
 
-	/** Grid y of a floor's floor blocks. */
-	int floorGridY(int floor) {
-		return OFFSET + layout.floorY(floor);
+	boolean inside(int x, int y, int z) {
+		return x >= minX && x < minX + sizeX && z >= minZ && z < minZ + sizeZ && y >= MIN_Y && y < MIN_Y + HEIGHT;
 	}
 
-	/** A writer for one cell that rejects writes outside the chunk or the cell's height range. */
-	CellWriter cell(int i, int j, int floor) {
-		int baseY = floorGridY(floor);
-		return (x, y, z, block) -> {
-			if (x < 0 || x > 15 || y < Geometry.MIN_Y || y > Geometry.MAX_Y || z < 0 || z > 15) {
-				throw new AssertionError("Write outside the cell: " + x + ", " + y + ", " + z + " in " + layout.roomAt(minCx + i, minCz + j, floor));
-			}
-			put(i * 16 + x, baseY + y, j * 16 + z, block);
-		};
+	private int offset(int x, int y, int z) {
+		return ((y - MIN_Y) * sizeZ + (z - minZ)) * sizeX + (x - minX);
 	}
 
-	private void put(int gx, int gy, int gz, Block block) {
+	private void put(int x, int y, int z, Block block) {
+		if (!inside(x, y, z)) {
+			return;
+		}
 		Byte id = index.get(block);
 		if (id == null) {
 			id = (byte) palette.size();
 			palette.add(block);
 			index.put(block, id);
 		}
-		cells[offset(gx, gy, gz)] = id;
+		cells[offset(x, y, z)] = id;
 	}
 
-	private int offset(int gx, int gy, int gz) {
-		return (gy * size * 16 + gz) * size * 16 + gx;
+	Block get(int x, int y, int z) {
+		return inside(x, y, z) ? palette.get(cells[offset(x, y, z)]) : null;
 	}
 
-	int widthBlocks() {
-		return size * 16;
-	}
-
-	/** Grid coordinates; anything outside the grid reads as the void. */
-	Block get(int gx, int gy, int gz) {
-		if (gx < 0 || gz < 0 || gx >= size * 16 || gz >= size * 16 || gy < 0 || gy >= height) {
-			return null;
+	String where(int x, int y, int z) {
+		String in = "between pieces";
+		for (Part p : parts) {
+			if (p.box.contains(x, y, z)) {
+				in = p.toString();
+				break;
+			}
 		}
-		return palette.get(cells[offset(gx, gy, gz)]);
-	}
-
-	String where(int gx, int gy, int gz) {
-		int cx = minCx + Math.floorDiv(gx, 16);
-		int cz = minCz + Math.floorDiv(gz, 16);
-		int floor = Math.floorDiv(gy - OFFSET, LayoutService.FLOOR_HEIGHT);
-		String room = floor >= 0 && floor < layout.floors() ? String.valueOf(layout.roomAt(cx, cz, floor)) : "-";
-		return "chunk " + cx + ", " + cz + " floor " + floor + " (" + room + ") local "
-			+ Math.floorMod(gx, 16) + ", y " + (gy - OFFSET - layout.floorY(Math.max(0, floor))) + ", " + Math.floorMod(gz, 16)
-			+ " [world " + (cx * 16 + Math.floorMod(gx, 16)) + ", " + (gy - OFFSET) + ", " + (cz * 16 + Math.floorMod(gz, 16)) + "]";
+		return x + ", " + y + ", " + z + " in " + in;
 	}
 }

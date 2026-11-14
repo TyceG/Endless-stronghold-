@@ -1,5 +1,7 @@
 package dev.tyceg.endlessstronghold.rooms;
 
+import dev.tyceg.endlessstronghold.gen.Box;
+import dev.tyceg.endlessstronghold.gen.Frame;
 import dev.tyceg.endlessstronghold.layout.Dir;
 import dev.tyceg.endlessstronghold.layout.DoorType;
 import dev.tyceg.endlessstronghold.layout.Rng;
@@ -16,64 +18,19 @@ import dev.tyceg.endlessstronghold.layout.Rng;
  * copying both is what puts every torch, ladder and button on its wall.
  */
 public final class Piece {
-	private final CellWriter w;
+	private final BlockSink w;
 	private final Dir orientation;
-	private final int minX;
-	private final int minY;
-	private final int minZ;
-	private final int maxX;
-	private final int maxZ;
+	private final Frame frame;
 	private final Block wall;
 	final Rng rng;
 
-	private Piece(CellWriter w, Dir orientation, int minX, int minY, int minZ, int maxX, int maxZ, Block wall, Rng rng) {
+	/** A piece placed in the world, with its own randomness, building walls from {@code wall}. */
+	public Piece(BlockSink w, Dir orientation, Box box, Block wall, Rng rng) {
 		this.w = w;
 		this.orientation = orientation;
-		this.minX = minX;
-		this.minY = minY;
-		this.minZ = minZ;
-		this.maxX = maxX;
-		this.maxZ = maxZ;
+		this.frame = new Frame(orientation, box);
 		this.wall = wall;
 		this.rng = rng;
-	}
-
-	/**
-	 * A piece whose bounding box starts at (minX, minY, minZ) in the cell.
-	 * {@code width} and {@code depth} are vanilla's x and z sizes; for EAST and
-	 * WEST the box is depth wide on x and width deep on z, as in vanilla.
-	 */
-	public static Piece at(CellWriter w, Dir orientation, int minX, int minY, int minZ, int width, int depth, Block wall, Rng rng) {
-		boolean northSouth = orientation == Dir.NORTH || orientation == Dir.SOUTH;
-		int spanX = northSouth ? width : depth;
-		int spanZ = northSouth ? depth : width;
-		return new Piece(w, orientation, minX, minY, minZ, minX + spanX - 1, minZ + spanZ - 1, wall, rng);
-	}
-
-	/** The way to run a piece entered through the given side of a cell: inward, away from that side. */
-	public static Dir orientationFor(Dir entrySide) {
-		return entrySide.opposite();
-	}
-
-	/** The side of the cell that the piece's x = 0 face looks out of. */
-	public static Dir lowXSide(Dir orientation) {
-		return orientation == Dir.NORTH || orientation == Dir.SOUTH ? Dir.WEST : Dir.NORTH;
-	}
-
-	int worldX(int x, int z) {
-		return switch (orientation) {
-			case NORTH, SOUTH -> minX + x;
-			case WEST -> maxX - z;
-			case EAST -> minX + z;
-		};
-	}
-
-	int worldZ(int x, int z) {
-		return switch (orientation) {
-			case NORTH -> maxZ - z;
-			case SOUTH -> minZ + z;
-			case WEST, EAST -> minZ + x;
-		};
 	}
 
 	Block orient(Block b) {
@@ -98,7 +55,7 @@ public final class Piece {
 	}
 
 	public void place(Block b, int x, int y, int z) {
-		w.set(worldX(x, z), minY + y, worldZ(x, z), orient(b));
+		w.set(frame.x(x, z), frame.y(y), frame.z(x, z), orient(b));
 	}
 
 	/** Vanilla's generateBox with two block states: the box's faces get {@code edge}, the inside {@code inside}. */
@@ -149,9 +106,8 @@ public final class Piece {
 
 	/**
 	 * Vanilla's generateSmallDoor. An iron door gets a stone button on each
-	 * side; {@code outsideButton} false leaves out the one in front of the
-	 * door (z - 1), for doors on the cell's edge where that spot belongs to the
-	 * neighbouring chunk, which places it instead.
+	 * side. {@code outsideButton} is always true now that pieces are placed as
+	 * vanilla places them; it stays for clarity at the call sites.
 	 */
 	public void smallDoor(DoorType type, int x, int y, int z, boolean outsideButton) {
 		switch (type) {

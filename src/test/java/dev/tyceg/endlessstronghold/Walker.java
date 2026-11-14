@@ -6,20 +6,16 @@ import java.util.ArrayDeque;
 /**
  * Walks a {@link World} the way a player can: on any solid block or step,
  * through anything passable, up one block at a time with headroom, down drops
- * of up to 3, and up and down ladders. Doors count as passable (iron doors in
- * connectors have buttons). Returns every spot where a player can stand.
+ * of up to 3, and up ladders. Doors count as passable (iron doors have
+ * buttons, except prison cells'). Records every spot where a player can stand.
  */
 final class Walker {
 	private final World world;
-	private final int w;
-	private final int h;
-	final boolean[] reached;
+	private final boolean[] reached;
 
 	private Walker(World world) {
 		this.world = world;
-		this.w = world.widthBlocks();
-		this.h = world.height;
-		this.reached = new boolean[w * h * w];
+		this.reached = new boolean[world.sizeX * World.HEIGHT * world.sizeZ];
 	}
 
 	static boolean passable(Block b) {
@@ -36,15 +32,15 @@ final class Walker {
 	}
 
 	boolean standable(int x, int y, int z) {
-		if (x < 0 || z < 0 || x >= w || z >= w || y < 0 || y + 1 >= h) {
+		if (!world.inside(x, y, z) || !world.inside(x, y + 1, z)) {
 			return false;
 		}
 		return passable(world.get(x, y, z)) && passable(world.get(x, y + 1, z))
 			&& (support(world.get(x, y - 1, z)) || ladder(x, y, z));
 	}
 
-	int id(int x, int y, int z) {
-		return (y * w + z) * w + x;
+	private int id(int x, int y, int z) {
+		return ((y - World.MIN_Y) * world.sizeZ + (z - world.minZ)) * world.sizeX + (x - world.minX);
 	}
 
 	static Walker from(World world, int x, int y, int z) {
@@ -73,7 +69,7 @@ final class Walker {
 					visit(queue, nx, y, nz);
 				} else if (headroomToRise && standable(nx, y + 1, nz)) {
 					visit(queue, nx, y + 1, nz);
-				} else if (passable(world.get(nx, y, nz)) && passable(world.get(nx, y + 1, nz))) {
+				} else if (world.inside(nx, y, nz) && passable(world.get(nx, y, nz)) && passable(world.get(nx, y + 1, nz))) {
 					for (int drop = 1; drop <= 3; drop++) {
 						if (standable(nx, y - drop, nz)) {
 							visit(queue, nx, y - drop, nz);
@@ -90,7 +86,6 @@ final class Walker {
 				if (standable(x, up, z) || ladder(x, up, z)) {
 					visit(queue, x, up, z);
 				} else {
-					// Off the top of a ladder: step sideways onto the floor above.
 					for (int[] d : dirs) {
 						if (standable(x + d[0], up, z + d[1])) {
 							visit(queue, x + d[0], up, z + d[1]);
@@ -110,6 +105,6 @@ final class Walker {
 	}
 
 	boolean reached(int x, int y, int z) {
-		return x >= 0 && z >= 0 && x < w && z < w && y >= 0 && y < h && reached[id(x, y, z)];
+		return world.inside(x, y, z) && reached[id(x, y, z)];
 	}
 }

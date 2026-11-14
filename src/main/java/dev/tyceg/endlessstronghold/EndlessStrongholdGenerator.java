@@ -2,12 +2,14 @@ package dev.tyceg.endlessstronghold;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import dev.tyceg.endlessstronghold.layout.LayoutService;
-import dev.tyceg.endlessstronghold.rooms.Rooms;
-import dev.tyceg.endlessstronghold.rooms.SpawnRoom;
-import dev.tyceg.endlessstronghold.world.ChunkCellWriter;
-import dev.tyceg.endlessstronghold.world.DecorationWriter;
-import net.minecraft.world.level.WorldGenLevel;
+import dev.tyceg.endlessstronghold.gen.Part;
+import dev.tyceg.endlessstronghold.gen.Region;
+import dev.tyceg.endlessstronghold.gen.Stronghold;
+import dev.tyceg.endlessstronghold.rooms.Block;
+import dev.tyceg.endlessstronghold.rooms.BlockSink;
+import dev.tyceg.endlessstronghold.rooms.Renderer;
+import dev.tyceg.endlessstronghold.world.ChunkSink;
+import dev.tyceg.endlessstronghold.world.DecorationSink;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -17,6 +19,7 @@ import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -31,8 +34,10 @@ import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The Overworld generator: every chunk builds its own cells of the stronghold
- * from the world seed and its coordinates. Modelled on vanilla's FlatLevelSource.
+ * The Overworld generator: an endless stronghold grown region by region the
+ * way vanilla grows a stronghold, floating in the void. Each chunk builds the
+ * pieces of its region that reach into it, clipped to the chunk, as vanilla
+ * builds a structure's pieces chunk by chunk. Modelled on vanilla's FlatLevelSource.
  */
 public class EndlessStrongholdGenerator extends ChunkGenerator {
 	public static final MapCodec<EndlessStrongholdGenerator> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -44,8 +49,8 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 	private static final int GEN_DEPTH = 384;
 
 	private final GeneratorSettings settings;
-	/** One immutable layout per seed; a generator normally only ever sees one. */
-	private volatile @Nullable LayoutService layout;
+	/** One stronghold per seed; a generator normally only ever sees one. */
+	private volatile @Nullable Stronghold stronghold;
 
 	public EndlessStrongholdGenerator(BiomeSource biomeSource, GeneratorSettings settings) {
 		super(biomeSource);
@@ -56,29 +61,42 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 		return settings;
 	}
 
-	public LayoutService layout(long seed) {
-		LayoutService current = layout;
+	public Stronghold stronghold(long seed) {
+		Stronghold current = stronghold;
 		if (current == null || current.seed() != seed) {
-			current = new LayoutService(seed, settings.floors(), settings.baseY());
-			layout = current;
+			current = new Stronghold(seed);
+			stronghold = current;
 		}
 		return current;
 	}
 
-	/** World position of the middle of the spawn room floor, where players appear. */
+	/** World position of the spawn room's floor, where players appear. */
 	public BlockPos spawnPos(long seed) {
-		LayoutService layout = layout(seed);
-		int floor = LayoutService.SPAWN_FLOOR;
-		return new BlockPos(
-			LayoutService.SPAWN_CX * 16 + SpawnRoom.SPAWN_X,
-			layout.floorY(floor) + SpawnRoom.SPAWN_Y,
-			LayoutService.SPAWN_CZ * 16 + SpawnRoom.SPAWN_Z
-		);
+		int[] s = stronghold(seed).spawn();
+		return new BlockPos(s[0], s[1], s[2]);
 	}
 
 	@Override
 	protected MapCodec<? extends ChunkGenerator> codec() {
 		return CODEC;
+	}
+
+	/** Builds every piece of the chunk's region that reaches into the chunk, then the stone behind dead-end doorways. */
+	private static void build(Region region, int minX, int minZ, BlockSink sink) {
+		int maxX = minX + 15;
+		int maxZ = minZ + 15;
+		for (Part part : region.parts) {
+			if (part.box.intersectsXZ(minX, minZ, maxX, maxZ)) {
+				Renderer.render(part, sink);
+			}
+		}
+		for (long plug : region.plugs) {
+			int x = Region.unpackX(plug);
+			int z = Region.unpackZ(plug);
+			if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+				sink.set(x, Region.unpackY(plug), z, Block.STONE);
+			}
+		}
 	}
 
 	@Override
@@ -91,13 +109,10 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 		@Nullable WorldGenRegion carverBiomeRegion,
 		Set<Holder<Biome>> possibleBiomes
 	) {
-		LayoutService layout = layout(randomState.seed());
-		int cx = chunk.getPos().x();
-		int cz = chunk.getPos().z();
-		ChunkCellWriter writer = new ChunkCellWriter(chunk, layout.seed());
-		for (int floor = 0; floor < layout.floors(); floor++) {
-			Rooms.buildCell(layout, cx, cz, floor, writer.atFloor(layout.floorY(floor)));
-		}
+		Stronghold s = stronghold(randomState.seed());
+		int minX = chunk.getPos().getMinBlockX();
+		int minZ = chunk.getPos().getMinBlockZ();
+		build(s.regionAt(minX, minZ), minX, minZ, new ChunkSink(chunk, s.seed()));
 		return CompletableFuture.completedFuture(chunk);
 	}
 
@@ -105,13 +120,10 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 	public void applyBiomeDecoration(WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
 		// The parent places structure pieces; skipping it would lose them.
 		super.applyBiomeDecoration(level, chunk, structureManager);
-		LayoutService layout = layout(level.getSeed());
-		int cx = chunk.getPos().x();
-		int cz = chunk.getPos().z();
-		DecorationWriter writer = new DecorationWriter(level, chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ(), layout.seed());
-		for (int floor = 0; floor < layout.floors(); floor++) {
-			Rooms.buildCell(layout, cx, cz, floor, writer.atFloor(layout.floorY(floor)));
-		}
+		Stronghold s = stronghold(level.getSeed());
+		int minX = chunk.getPos().getMinBlockX();
+		int minZ = chunk.getPos().getMinBlockZ();
+		build(s.regionAt(minX, minZ), minX, minZ, new DecorationSink(level, minX, minZ, s.seed()));
 	}
 
 	@Override
@@ -145,8 +157,14 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 
 	@Override
 	public void addDebugScreenInfo(List<String> result, RandomState randomState, BlockPos feetPos, SamplerContext samplerContext) {
-		LayoutService layout = layout(randomState.seed());
-		int floor = Math.floorDiv(feetPos.getY() - layout.floorY(0), LayoutService.FLOOR_HEIGHT);
-		result.add("Endless Stronghold cell " + (feetPos.getX() >> 4) + ", " + (feetPos.getZ() >> 4) + " floor " + floor);
+		Region region = stronghold(randomState.seed()).regionAt(feetPos.getX(), feetPos.getZ());
+		String here = "corridor";
+		for (Part part : region.parts) {
+			if (part.box.contains(feetPos.getX(), feetPos.getY(), feetPos.getZ())) {
+				here = part.kind.name().toLowerCase(java.util.Locale.ROOT) + (part.trunk ? " (main corridor)" : "") + " depth " + part.depth;
+				break;
+			}
+		}
+		result.add("Endless Stronghold region " + region.rx + ", " + region.rz + ": " + here);
 	}
 }

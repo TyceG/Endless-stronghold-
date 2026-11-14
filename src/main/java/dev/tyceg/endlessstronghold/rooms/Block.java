@@ -40,7 +40,12 @@ public record Block(Kind kind, Dir facing, int data) {
 		OAK_DOOR(Shape.PASSABLE),
 		IRON_DOOR(Shape.PASSABLE),
 		STONE_BUTTON(Shape.PASSABLE),
-		CHEST(Shape.STEP);
+		CHEST(Shape.STEP),
+		STONE(Shape.SOLID),
+		LAVA(Shape.BLOCKING),
+		END_PORTAL_FRAME(Shape.STEP),
+		END_PORTAL(Shape.BLOCKING),
+		SPAWNER(Shape.SOLID);
 
 		public final Shape shape;
 
@@ -82,6 +87,15 @@ public record Block(Kind kind, Dir facing, int data) {
 	public static final Block SMOOTH_STONE_SLAB = new Block(Kind.SMOOTH_STONE_SLAB, null, 0);
 	public static final Block SMOOTH_STONE_DOUBLE_SLAB = new Block(Kind.SMOOTH_STONE_SLAB, null, 2);
 	public static final Block STONE_BRICK_SLAB = new Block(Kind.STONE_BRICK_SLAB, null, 0);
+	public static final Block STONE = of(Kind.STONE);
+	public static final Block LAVA = of(Kind.LAVA);
+	public static final Block END_PORTAL = of(Kind.END_PORTAL);
+	public static final Block SPAWNER = of(Kind.SPAWNER);
+
+	/** An end portal frame; data 1 if it holds an eye. */
+	public static Block endPortalFrame(Dir facing, boolean eye) {
+		return new Block(Kind.END_PORTAL_FRAME, facing, eye ? 1 : 0);
+	}
 
 	private static Block of(Kind kind) {
 		return new Block(kind, null, 0);
