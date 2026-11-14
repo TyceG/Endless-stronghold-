@@ -48,6 +48,9 @@ final class States {
 			case STONE_BRICK_STAIRS -> Blocks.STONE_BRICK_STAIRS.defaultBlockState()
 				.setValue(StairBlock.FACING, facing)
 				.setValue(StairBlock.HALF, block.data() == 1 ? Half.TOP : Half.BOTTOM);
+			case COBBLESTONE_STAIRS -> Blocks.COBBLESTONE_STAIRS.defaultBlockState()
+				.setValue(StairBlock.FACING, facing)
+				.setValue(StairBlock.HALF, block.data() == 1 ? Half.TOP : Half.BOTTOM);
 			case OAK_DOOR -> door(Blocks.OAK_DOOR.defaultBlockState(), facing, block.data());
 			case IRON_DOOR -> door(Blocks.IRON_DOOR.defaultBlockState(), facing, block.data());
 			case STONE_BUTTON -> Blocks.STONE_BUTTON.defaultBlockState()

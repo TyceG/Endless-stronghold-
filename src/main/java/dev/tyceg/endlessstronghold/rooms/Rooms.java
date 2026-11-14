@@ -39,7 +39,17 @@ public final class Rooms {
 
 	/** Whether the room builds this side's connector itself, as its front wall. */
 	private static boolean roomOwnsConnector(Cell cell, Dir side) {
-		return cell.type() == RoomType.LIBRARY && side == cell.entry() && LibraryRoom.frontWallIsConnector(side);
+		if (side != Dir.NORTH && side != Dir.WEST) {
+			return false;
+		}
+		if (cell.type() == RoomType.LIBRARY) {
+			return side == cell.entry();
+		}
+		// A straight staircase's pieces end in the cell's own connector on that side.
+		if (cell.plan() != null && cell.plan().straight()) {
+			return cell.type() == RoomType.STAIRS_TOP ? side == cell.plan().upper() : side == cell.plan().lower();
+		}
+		return false;
 	}
 
 	public static void buildCell(LayoutService layout, int cx, int cz, int floor, CellWriter writer) {

@@ -36,6 +36,7 @@ public record Block(Kind kind, Dir facing, int data) {
 		SMOOTH_STONE_SLAB(Shape.STEP),
 		STONE_BRICK_SLAB(Shape.STEP),
 		STONE_BRICK_STAIRS(Shape.STEP),
+		COBBLESTONE_STAIRS(Shape.STEP),
 		OAK_DOOR(Shape.PASSABLE),
 		IRON_DOOR(Shape.PASSABLE),
 		STONE_BUTTON(Shape.PASSABLE),
@@ -100,6 +101,10 @@ public record Block(Kind kind, Dir facing, int data) {
 
 	public static Block stairs(Dir facing) {
 		return new Block(Kind.STONE_BRICK_STAIRS, facing, 0);
+	}
+
+	public static Block cobblestoneStairs(Dir facing) {
+		return new Block(Kind.COBBLESTONE_STAIRS, facing, 0);
 	}
 
 	public static Block oakDoor(Dir facing, boolean upper) {

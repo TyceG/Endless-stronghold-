@@ -6,7 +6,7 @@ The full plan is in [DESIGN.md](DESIGN.md); changes to it are in [DECISIONS.md](
 
 ## Status
 
-**Phase 2 of 4: the real stronghold.** Four floors, 12 blocks apart, a maze in every 128 × 128 block area, joined by vanilla's spiral staircases. Every room is a vanilla stronghold piece, block for block: libraries, prison halls, chest corridors, five-way crossings, and pillar, fountain, storeroom and empty room crossings, joined by vanilla-style corridors, with vanilla's doors, cracked, mossy and infested bricks, and chests with stronghold loot. Portal rooms, eyes of ender and the extra loot come in Phase 3.
+**Phase 2 of 4: the real stronghold.** Four floors, 12 blocks apart, a maze in every 128 × 128 block area, joined by vanilla's spiral and straight cobblestone staircases. Every room is a vanilla stronghold piece, block for block: libraries, prison halls, chest corridors, five-way crossings, and pillar, fountain, storeroom and empty room crossings, joined by vanilla-style corridors, with vanilla's doors, cracked, mossy and infested bricks, and chests with stronghold loot. Portal rooms, eyes of ender and the extra loot come in Phase 3.
 
 ## Playing it
 

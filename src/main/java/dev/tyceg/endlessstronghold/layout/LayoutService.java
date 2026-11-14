@@ -82,42 +82,54 @@ public final class LayoutService {
 	/**
 	 * Two staircases between each pair of floors in the region, in distinct
 	 * cells, never in the spawn chunk, and only where a staircase plan fits the
-	 * cells' open sides on both floors.
+	 * cells' open sides on both floors. Vanilla weighs its spiral and straight
+	 * stair pieces equally; the straight kind fits only where the cell is a dead
+	 * end on both floors, facing opposite ways, so where the region has such a
+	 * cell, one of its two staircases is straight.
 	 */
 	private void placeStairs(RegionMaze maze) {
 		for (int f = 0; f + 1 < floors; f++) {
-			long best1 = -1;
-			long best2 = -1;
-			int pick1 = -1;
-			int pick2 = -1;
+			int placed = 0;
+			int s = maze.straightCell[f];
+			if (s >= 0) {
+				int cx = maze.rx * REGION + s % REGION;
+				int cz = maze.rz * REGION + s / REGION;
+				if (StairPlan.straightFits(openSides(maze, cx, cz, f + 1), openSides(maze, cx, cz, f))) {
+					maze.stairUp[f][s] = true;
+					maze.straight[f][s] = true;
+					placed++;
+				}
+			}
+			long[] keys = new long[RegionMaze.CELLS];
+			boolean[] ok = new boolean[RegionMaze.CELLS];
 			for (int i = 0; i < RegionMaze.CELLS; i++) {
 				int cx = maze.rx * REGION + i % REGION;
 				int cz = maze.rz * REGION + i / REGION;
 				if (cx == SPAWN_CX && cz == SPAWN_CZ) {
 					continue;
 				}
+				// Not the top of the previous staircase, and not a straight staircase end on either floor.
 				if (f > 0 && maze.stairUp[f - 1][i]) {
 					continue;
 				}
-				if (!StairPlan.anyValid(openSides(maze, cx, cz, f + 1), openSides(maze, cx, cz, f))) {
+				if (maze.leafSide(f, i) != null || maze.leafSide(f + 1, i) != null) {
 					continue;
 				}
-				long key = Hash.of(seed, STAIR_SALT, maze.rx, maze.rz, f, i) >>> 1;
-				if (key > best1) {
-					best2 = best1;
-					pick2 = pick1;
-					best1 = key;
-					pick1 = i;
-				} else if (key > best2) {
-					best2 = key;
-					pick2 = i;
+				keys[i] = Hash.of(seed, STAIR_SALT, maze.rx, maze.rz, f, i) >>> 1;
+				ok[i] = StairPlan.anyValid(openSides(maze, cx, cz, f + 1), openSides(maze, cx, cz, f));
+			}
+			while (placed < RegionMaze.STAIRS_PER_FLOOR_PAIR) {
+				int pick = -1;
+				for (int i = 0; i < RegionMaze.CELLS; i++) {
+					if (ok[i] && !maze.stairUp[f][i] && (pick < 0 || keys[i] > keys[pick])) {
+						pick = i;
+					}
 				}
-			}
-			if (pick1 >= 0) {
-				maze.stairUp[f][pick1] = true;
-			}
-			if (pick2 >= 0) {
-				maze.stairUp[f][pick2] = true;
+				if (pick < 0) {
+					break;
+				}
+				maze.stairUp[f][pick] = true;
+				placed++;
 			}
 		}
 	}
@@ -150,6 +162,10 @@ public final class LayoutService {
 			RegionMaze m = maze != null && maze.rx == rax && maze.rz == raz ? maze : region(rax, raz);
 			if (edge.dir() == Dir.EAST ? m.treeEast(f, lx, lz) : m.treeSouth(f, lx, lz)) {
 				return true;
+			}
+			// A straight staircase cell stays a dead end: no extra openings.
+			if (m.leafSide(f, lx, lz) != null || m.leafSide(f, lx + edge.dir().dx, lz + edge.dir().dz) != null) {
+				return false;
 			}
 		} else if (isBoundaryDoor(rax, raz, f, edge.dir(), edge.dir() == Dir.EAST ? lz : lx)) {
 			return true;
@@ -206,9 +222,39 @@ public final class LayoutService {
 		return stairUp(cx, cz, floor - 1);
 	}
 
+	/** True if the staircase whose bottom is this cell is the straight cobblestone kind. */
+	public boolean straightStair(int cx, int cz, int lowerFloor) {
+		if (!stairUp(cx, cz, lowerFloor)) {
+			return false;
+		}
+		RegionMaze maze = region(Math.floorDiv(cx, REGION), Math.floorDiv(cz, REGION));
+		return maze.straight(lowerFloor, Math.floorMod(cx, REGION), Math.floorMod(cz, REGION));
+	}
+
 	/** The plan for the staircase whose bottom cell is (cx, cz, lowerFloor). */
 	public StairPlan stairPlan(int cx, int cz, int lowerFloor) {
-		return StairPlan.choose(openSides(cx, cz, lowerFloor + 1), openSides(cx, cz, lowerFloor), Hash.of(seed, PLAN_SALT, cx, cz, lowerFloor));
+		long hash = Hash.of(seed, PLAN_SALT, cx, cz, lowerFloor);
+		int upper = openSides(cx, cz, lowerFloor + 1);
+		if (straightStair(cx, cz, lowerFloor)) {
+			StairPlan plan = StairPlan.straight(upper, hash);
+			// A's front wall: the upper edge's door if it's this cell's own connector, an opening otherwise.
+			Dir up = plan.upper();
+			DoorType doorA = up == Dir.NORTH || up == Dir.WEST ? doorType(cx, cz, lowerFloor + 1, up) : DoorType.OPENING;
+			return new StairPlan(true, up, 0, 0, 0, doorA, plan.doorB());
+		}
+		return StairPlan.choose(upper, openSides(cx, cz, lowerFloor), hash);
+	}
+
+	/**
+	 * Whether this side of this cell is where a straight staircase's piece
+	 * meets the edge: the upper piece's top (on its upper floor) or the lower
+	 * piece's bottom (on its lower floor).
+	 */
+	public boolean straightStairEnd(int cx, int cz, int floor, Dir side) {
+		if (!Dir.has(openSides(cx, cz, floor), side)) {
+			return false;
+		}
+		return straightStair(cx, cz, floor) || straightStair(cx, cz, floor - 1);
 	}
 
 	// ---- Rooms ----
@@ -309,15 +355,17 @@ public final class LayoutService {
 	/**
 	 * The five-way crossing's 11-deep room fits only with its back against
 	 * this cell's own north or west connector, so it's entered from the south
-	 * with the north closed, or from the east with the west closed.
+	 * or the east. Its front door and both low side exits are on the same
+	 * level, so it goes only where all three lead into the maze: a T-junction.
 	 */
 	private static Dir fiveWayEntry(int open, long hash) {
-		boolean fromSouth = Dir.has(open, Dir.SOUTH) && !Dir.has(open, Dir.NORTH);
-		boolean fromEast = Dir.has(open, Dir.EAST) && !Dir.has(open, Dir.WEST);
-		if (fromSouth && fromEast) {
-			return (hash & 1) == 0 ? Dir.SOUTH : Dir.EAST;
+		if (open == (Dir.SOUTH.bit() | Dir.EAST.bit() | Dir.WEST.bit())) {
+			return Dir.SOUTH;
 		}
-		return fromSouth ? Dir.SOUTH : fromEast ? Dir.EAST : null;
+		if (open == (Dir.EAST.bit() | Dir.NORTH.bit() | Dir.SOUTH.bit())) {
+			return Dir.EAST;
+		}
+		return null;
 	}
 
 	private static Dir onlySide(int open) {
@@ -358,8 +406,17 @@ public final class LayoutService {
 	public DoorType doorType(int cx, int cz, int floor, Dir side) {
 		Edge edge = Edge.of(cx, cz, floor, side);
 		DoorType door = DoorType.fromRoll(Hash.below(edge.hash(seed, DOOR_SALT), 5));
-		if (door == DoorType.IRON_DOOR && roomAt(edge.cx(), edge.cz(), floor) == RoomType.LIBRARY) {
+		// The edge's connector belongs to the east or south cell; the west or north cell's room faces it.
+		int ox = edge.cx() + edge.dir().dx;
+		int oz = edge.cz() + edge.dir().dz;
+		boolean farRoomFacesIt = roomAt(edge.cx(), edge.cz(), floor) == RoomType.LIBRARY
+			|| straightStairEnd(edge.cx(), edge.cz(), floor, edge.dir());
+		if (door == DoorType.IRON_DOOR && farRoomFacesIt) {
 			return DoorType.WOOD_DOOR;
+		}
+		// The bottom of a straight staircase opens straight out through its own connector, as vanilla's does.
+		if (straightStairEnd(ox, oz, floor, edge.dir().opposite()) && straightStair(ox, oz, floor)) {
+			return DoorType.OPENING;
 		}
 		return door;
 	}

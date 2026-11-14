@@ -106,6 +106,8 @@ class LayoutTest {
 
 	@Test
 	void twoStaircasesPerFloorPairPerRegionEachWithAPlanThatFits() {
+		int straights = 0;
+		int spirals = 0;
 		for (long seed : new long[] {SEED, 99L}) {
 			LayoutService layout = layout(seed);
 			for (int rx = -4; rx <= 4; rx++) {
@@ -124,7 +126,17 @@ class LayoutTest {
 								assertEquals(RoomType.STAIRS_BOTTOM, layout.roomAt(cx, cz, f));
 								assertEquals(RoomType.STAIRS_TOP, layout.roomAt(cx, cz, f + 1));
 								StairPlan plan = layout.stairPlan(cx, cz, f);
-								assertTrue(StairPlan.valid(plan.sideA(), plan.sideB(), layout.openSides(cx, cz, f + 1), layout.openSides(cx, cz, f)));
+								int upper = layout.openSides(cx, cz, f + 1);
+								int lower = layout.openSides(cx, cz, f);
+								if (plan.straight()) {
+									straights++;
+									assertTrue(StairPlan.straightFits(upper, lower), "a straight staircase where it doesn't fit");
+									assertEquals(plan.upper().bit(), upper);
+									assertEquals(plan.lower().bit(), lower);
+									continue;
+								}
+								spirals++;
+								assertTrue(StairPlan.valid(plan.sideA(), plan.sideB(), upper, lower));
 								int[] path = plan.midPath();
 								for (int i : path) {
 									assertNotEquals(plan.a(), i, "the halfway corridor runs through stair piece A");
@@ -137,6 +149,8 @@ class LayoutTest {
 				}
 			}
 		}
+		System.out.println("staircases: " + straights + " straight, " + spirals + " spiral");
+		assertTrue(straights > spirals / 5, "too few straight staircases: " + straights + " straight, " + spirals + " spiral");
 	}
 
 	@Test
@@ -160,7 +174,8 @@ class LayoutTest {
 						case FIVE_WAY_CROSSING -> {
 							Dir entry = cell.entry();
 							assertTrue(entry == Dir.SOUTH || entry == Dir.EAST, where);
-							assertTrue(cell.isOpen(entry) && !cell.isOpen(entry.opposite()), where);
+							// A T-junction: the front door and both low side exits lead into the maze.
+							assertEquals(0b1111 & ~entry.opposite().bit(), open, where);
 							assertFalse(f > 0 && layout.roomAt(cx, cz, f - 1) == RoomType.LIBRARY && layout.libraryTall(cx, cz, f - 1),
 								"five-way crossing sinks into a tall library: " + where);
 						}

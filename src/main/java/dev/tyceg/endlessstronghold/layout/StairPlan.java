@@ -14,8 +14,14 @@ package dev.tyceg.endlessstronghold.layout;
  *
  * <p>The upper floor reaches A's entrance through the edge block before it and
  * the corner beside it; B's exit reaches the lower floor's hub the same way.
+ *
+ * <p>A straight plan ({@code straight}) uses two of vanilla's straight
+ * cobblestone stair pieces (StraightStairsDown, 8 long) end to end, filling the
+ * cell's middle row or column: A comes in from the upper floor's only open
+ * side {@code upper}, and B goes out through the opposite side, the lower
+ * floor's only open side. {@code a}, {@code b} and {@code dir} are unused.
  */
-public record StairPlan(int a, int b, int dir, DoorType doorA, DoorType doorB) {
+public record StairPlan(boolean straight, Dir upper, int a, int b, int dir, DoorType doorA, DoorType doorB) {
 	public static final int[][] RING = {{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}};
 
 	public static int wrap(int i) {
@@ -91,18 +97,45 @@ public record StairPlan(int a, int b, int dir, DoorType doorA, DoorType doorB) {
 		return false;
 	}
 
-	/** Picks one of the valid plans by hash. */
+	/** The side the straight staircase leaves the lower floor by. */
+	public Dir lower() {
+		return upper.opposite();
+	}
+
+	/** Whether two cells, one above the other, can hold a straight staircase: dead ends facing opposite ways. */
+	public static boolean straightFits(int upperOpen, int lowerOpen) {
+		return Integer.bitCount(upperOpen) == 1 && Integer.bitCount(lowerOpen) == 1 && sideOf(upperOpen).opposite() == sideOf(lowerOpen);
+	}
+
+	private static Dir sideOf(int open) {
+		for (Dir d : Dir.values()) {
+			if (open == d.bit()) {
+				return d;
+			}
+		}
+		return null;
+	}
+
+	/** Each stair piece's front door is one of vanilla's small doors, rolled as vanilla rolls them. */
+	private static DoorType door(long hash, int which) {
+		return DoorType.fromRoll(Hash.below(Hash.mix(hash ^ which), 5));
+	}
+
+	public static StairPlan straight(int upperOpen, long hash) {
+		return new StairPlan(true, sideOf(upperOpen), 0, 0, 0, door(hash, 0xA), door(hash, 0xB));
+	}
+
+	/** Picks one of the valid spiral plans by hash. */
 	public static StairPlan choose(int upperOpen, int lowerOpen, long hash) {
-		// Each stair piece's front door is one of vanilla's small doors, rolled as vanilla rolls them.
-		DoorType doorA = DoorType.fromRoll(Hash.below(Hash.mix(hash ^ 0xA), 5));
-		DoorType doorB = DoorType.fromRoll(Hash.below(Hash.mix(hash ^ 0xB), 5));
+		DoorType doorA = door(hash, 0xA);
+		DoorType doorB = door(hash, 0xB);
 		StairPlan[] options = new StairPlan[32];
 		int n = 0;
 		for (Dir sa : Dir.values()) {
 			for (Dir sb : Dir.values()) {
 				if (valid(sa, sb, upperOpen, lowerOpen)) {
-					options[n++] = new StairPlan(edgeOf(sa), edgeOf(sb), 1, doorA, doorB);
-					options[n++] = new StairPlan(edgeOf(sa), edgeOf(sb), -1, doorA, doorB);
+					options[n++] = new StairPlan(false, null, edgeOf(sa), edgeOf(sb), 1, doorA, doorB);
+					options[n++] = new StairPlan(false, null, edgeOf(sa), edgeOf(sb), -1, doorA, doorB);
 				}
 			}
 		}

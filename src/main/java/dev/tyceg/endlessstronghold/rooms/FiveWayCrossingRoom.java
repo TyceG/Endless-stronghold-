@@ -10,12 +10,12 @@ import dev.tyceg.endlessstronghold.layout.Rng;
  *
  * <p>Its exits are at three heights. The front door and the two low side exits
  * share a floor 2 blocks above the room's own floor, so the room sinks 2 blocks
- * into the floor and those three line up with the cell's floor: the front door
- * to the cell's south (or east) side, the low exits to its other two sides
- * when they're open. The high side exits, rolled like vanilla's, open into
- * short closed corridors. The far exit, which vanilla always cuts and which
- * leads 2 blocks down, would open onto the neighbouring chunk, so it stays
- * walled.
+ * into the floor and those three line up with the cell's floor. It's placed
+ * only at T-junctions, so all three lead into the maze. The two high exits,
+ * which vanilla rolls at random, would be 2 blocks above the floor with nowhere
+ * to go, so they take vanilla's roll where neither appears. The far exit,
+ * which vanilla always cuts and which leads 2 blocks down, would open onto the
+ * neighbouring chunk, so it stays walled.
  */
 public final class FiveWayCrossingRoom implements RoomBuilder {
 	public static final FiveWayCrossingRoom INSTANCE = new FiveWayCrossingRoom();
@@ -36,8 +36,10 @@ public final class FiveWayCrossingRoom implements RoomBuilder {
 		Dir left = Piece.lowXSide(orientation);
 		boolean leftLow = cell.isOpen(left);
 		boolean rightLow = cell.isOpen(left.opposite());
-		boolean leftHigh = rng.nextBoolean();
-		boolean rightHigh = rng.nextInt(3) > 0;
+		// Vanilla rolls the two high exits; they'd be 2 blocks above any floor and lead
+		// nowhere, so they take vanilla's roll where neither appears.
+		boolean leftHigh = false;
+		boolean rightHigh = false;
 
 		// Corridors outside the room, in the room's own coordinates.
 		corridor(p, 3, 7, 2, -5, -1, true);

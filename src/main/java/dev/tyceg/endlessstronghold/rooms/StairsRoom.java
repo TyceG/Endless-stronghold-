@@ -16,6 +16,11 @@ import dev.tyceg.endlessstronghold.layout.StairPlan;
  * comes down to the lower floor. See {@link StairPlan} for where they sit.
  * The bottom cell builds both pieces and the halfway corridor; the top cell
  * builds the upper floor's corridors up to A's door.
+ *
+ * <p>A straight staircase is two of vanilla's straight cobblestone stair
+ * pieces (StraightStairsDown, block for block, 8 long), end to end across the
+ * cell's middle row or column: in from the upper floor on one side, out to the
+ * lower floor on the other, as vanilla chains its pieces.
  */
 public final class StairsRoom implements RoomBuilder {
 	public static final StairsRoom BOTTOM = new StairsRoom(false);
@@ -33,6 +38,13 @@ public final class StairsRoom implements RoomBuilder {
 
 	@Override
 	public void build(CellWriter w, Cell cell) {
+		if (cell.plan().straight()) {
+			if (!top) {
+				buildStraight(w, cell);
+			}
+			// The top cell has nothing of its own: the upper piece's top is its only room.
+			return;
+		}
 		if (top) {
 			buildTop(w, cell);
 		} else {
@@ -72,6 +84,51 @@ public final class StairsRoom implements RoomBuilder {
 		p.place(Block.SMOOTH_STONE_SLAB, 1, 2, 1);
 		p.place(Block.STONE_BRICKS, 1, 1, 2);
 		p.place(Block.SMOOTH_STONE_SLAB, 1, 1, 3);
+	}
+
+	/** Vanilla's StraightStairsDown.postProcess. */
+	private static void straightStairsDown(Piece p, DoorType entryDoor, boolean outsideButton) {
+		p.selector(0, 0, 0, 4, 10, 7);
+		p.smallDoor(entryDoor, 1, 7, 0, outsideButton);
+		p.smallDoor(DoorType.OPENING, 1, 1, 7, true);
+		Block stairs = Block.cobblestoneStairs(Dir.SOUTH);
+		for (int i = 0; i < 6; i++) {
+			p.place(stairs, 1, 6 - i, 1 + i);
+			p.place(stairs, 2, 6 - i, 1 + i);
+			p.place(stairs, 3, 6 - i, 1 + i);
+			if (i < 5) {
+				p.place(Block.STONE_BRICKS, 1, 5 - i, 1 + i);
+				p.place(Block.STONE_BRICKS, 2, 5 - i, 1 + i);
+				p.place(Block.STONE_BRICKS, 3, 5 - i, 1 + i);
+			}
+		}
+	}
+
+	/**
+	 * Two straight pieces across the cell: the upper one, A, fills the half on
+	 * the upper floor's open side; the lower one, B, the half on the other side.
+	 */
+	private static void buildStraight(CellWriter w, Cell cell) {
+		StairPlan plan = cell.plan();
+		Dir up = plan.upper();
+		Dir travel = up.opposite();
+		boolean upIsLow = up == Dir.NORTH || up == Dir.WEST;
+		int aStart = upIsLow ? 0 : 8;
+		int bStart = upIsLow ? 8 : 0;
+		Piece a = straightPiece(w, travel, aStart, HALFWAY, cell.hash());
+		Piece b = straightPiece(w, travel, bStart, 0, cell.hash() + 1);
+		// A's front wall is this cell's own connector on the north or west, holding the edge's door
+		// (its outside button belongs to the neighbour); on the south or east the neighbour's
+		// connector holds the door and A's wall has an opening.
+		straightStairsDown(a, plan.doorA(), false);
+		straightStairsDown(b, plan.doorB(), true);
+	}
+
+	private static Piece straightPiece(CellWriter w, Dir orientation, int start, int minY, long seed) {
+		boolean northSouth = orientation == Dir.NORTH || orientation == Dir.SOUTH;
+		return northSouth
+			? Piece.at(w, orientation, 6, minY, start, 5, 8, Block.WALL, new Rng(seed))
+			: Piece.at(w, orientation, start, minY, 6, 5, 8, Block.WALL, new Rng(seed));
 	}
 
 	private static void buildBottom(CellWriter w, Cell cell) {

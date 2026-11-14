@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -196,7 +198,10 @@ final class SmokeTest {
 		BlockPos base = side == Dir.WEST ? new BlockPos(minX, floorY, minZ + middle) : new BlockPos(minX + middle, floorY, minZ);
 		for (int step = -1; step <= 1; step++) {
 			BlockPos p = side == Dir.WEST ? base.offset(step, 0, 0) : base.offset(0, 0, step);
-			if (!solid(level, p) || !walkable(level, p.above(1)) || !walkable(level, p.above(2))) {
+			// Standing on the floor, or on a stair or slab one up (a staircase's first or last step).
+			boolean onFloor = standsOn(level, p) && walkable(level, p.above(1)) && walkable(level, p.above(2));
+			boolean onStep = isStep(level, p.above(1)) && walkable(level, p.above(2)) && walkable(level, p.above(3));
+			if (!onFloor && !onStep) {
 				failures.add("blocked doorway at " + p.above().toShortString() + " (" + side + " side of chunk " + chunk.getPos() + ")");
 				return;
 			}
@@ -210,5 +215,14 @@ final class SmokeTest {
 
 	private static boolean solid(ServerLevel level, BlockPos pos) {
 		return level.getBlockState(pos).isSolidRender();
+	}
+
+	private static boolean isStep(ServerLevel level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		return state.getBlock() instanceof StairBlock || state.getBlock() instanceof SlabBlock;
+	}
+
+	private static boolean standsOn(ServerLevel level, BlockPos pos) {
+		return solid(level, pos) || isStep(level, pos);
 	}
 }

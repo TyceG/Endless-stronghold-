@@ -61,7 +61,7 @@ Tyce's playtest: the library sometimes had two doorways, and the library, prison
 
 **Floors are 12 blocks apart, not 16.** Vanilla's stair pieces each go down exactly 6 blocks, so two of them join floors 12 apart. Floors are now at Y 0, 12, 24 and 36; the spawn point is (8, 13, 5).
 
-**Staircases are two of vanilla's spiral StairsDown pieces.** The upper one comes down from the upper floor to a corridor halfway between the floors; that corridor leads around the cell to the lower one, which comes down to the lower floor. Staircases only go in cells where the upper floor has a closed side for the upper piece and the lower floor has a different closed side for the lower one (`layout.StairPlan`). Vanilla also has a straight staircase (StraightStairsDown, 8 long); it doesn't fit this 5 x 5 block grid and isn't used.
+**Staircases are two of vanilla's spiral StairsDown pieces.** The upper one comes down from the upper floor to a corridor halfway between the floors; that corridor leads around the cell to the lower one, which comes down to the lower floor. Staircases only go in cells where the upper floor has a closed side for the upper piece and the lower floor has a different closed side for the lower one (`layout.StairPlan`). Vanilla's straight staircase came in the third pass, below.
 
 | Room | How it fits |
 |---|---|
@@ -69,7 +69,7 @@ Tyce's playtest: the library sometimes had two doorways, and the library, prison
 | Prison hall | Vanilla's piece exactly: 2 cells on one side. The first pass's mirrored 4-cell version is gone. Straight cells only, with short corridors at each end. |
 | Chest corridor | Vanilla's piece exactly, in place of the first pass's hall with a niche. Straight cells only. |
 | Room crossings | Vanilla's piece exactly. Vanilla always cuts openings on all four sides; here only on open sides, since a closed side would open onto the void. |
-| Five-way crossing | Replaces the "grand crossing", which wasn't vanilla. Vanilla's piece exactly, sunk 2 blocks so its front door and low side exits are at the floor. The high side exits are rolled like vanilla's and open into short closed corridors. **One difference:** vanilla always cuts a far exit, 2 blocks lower; here it would open onto the next chunk, so it stays walled, and the slab steps down to it lead to a wall. Only in cells entered from the south with the north closed, or from the east with the west closed (its back sits on the cell's own connector), and never over a tall library (it sinks into the floor below). |
+| Five-way crossing | Replaces the "grand crossing", which wasn't vanilla. Vanilla's piece exactly, sunk 2 blocks so its front door and low side exits are at the floor. See the third pass for where it goes and which exits it has. Never over a tall library (it sinks into the floor below). |
 | Spawn room | Vanilla's pillar room exactly, plus 8 wall torches and no infested bricks. |
 
 **Chests turn like vanilla's**: they're placed with vanilla's `StructurePiece.reorient`, facing away from a single solid neighbour.
@@ -79,3 +79,11 @@ Tyce's playtest: the library sometimes had two doorways, and the library, prison
 **Iron doors in front of a library entered from the south or east become oak doors.** Their far button would have to sit in the library's wall.
 
 **Halls bent toward a library have no wall torches**, because the bend cuts through the walls they'd hang on.
+
+## Phase 2, third pass (after the second playtest)
+
+**Five-way crossings only at T-junctions, with no high exits.** Tyce found its doorways led to dead ends everywhere. Its high side exits are 2 blocks above any floor, so they led into short closed corridors. Vanilla rolls them at random (50% and 67%), and "neither" is one of vanilla's possible rolls, so they're left out. The room now goes only where its front door and both low side exits lead into the maze: entered from the south with east and west open and the north closed, or from the east with north and south open and the west closed. The far exit still can't connect (it's 2 blocks below the floor and would open onto the next chunk) and stays walled.
+
+**Straight cobblestone staircases.** Vanilla weighs its spiral (StairsDown) and straight (StraightStairsDown) pieces equally, so now one of each region's two staircases per pair of floors is straight. The straight piece is 8 long, and two of them end to end are exactly 16, the width of a chunk. So a straight staircase runs across a whole cell: in from the upper floor on one side, down one piece, straight into the second, down again, and out the opposite side on the lower floor, chained the way vanilla chains them. That needs a cell that's a dead end on both floors, facing opposite ways. The maze makes one per region per pair of floors: the cell is chosen first (inside the region, away from spawn), its trees attach it by that one edge, and no extra openings are added around it.
+
+Where a straight staircase's piece meets its own north or west connector, the piece's wall is the connector: the top piece's front wall holds the edge's door, and the bottom piece's exit is vanilla's opening. Where it meets the south or east edge, the neighbour's connector holds the door; an iron door there becomes an oak door, since its button would have to sit in the piece's wall.
