@@ -6,7 +6,7 @@ The full plan is in [DESIGN.md](DESIGN.md); changes to it are in [DECISIONS.md](
 
 ## Status
 
-**Phase 2 of 4: the real stronghold.** The stronghold grows the way vanilla grows one, piece by piece, with vanilla's rooms block for block, vanilla's weights, limits and rules, and every doorway at its real height. It never ends: the world is split into 256 x 256 block regions, each growing its own stronghold, joined into one by main corridors made of vanilla's pieces. Each region has a portal room; eyes of ender finding it come in Phase 3. Chests hold vanilla's stronghold loot.
+**Phase 3 of 4: finding the End.** The stronghold grows the way vanilla grows one, piece by piece, with vanilla's rooms block for block, vanilla's weights, limits and rules, and every doorway at its real height. It never ends: the world is split into 256 x 256 block regions, each growing its own stronghold, joined into one by main corridors made of vanilla's pieces. Each region has a portal room, which eyes of ender and `/locate structure endless_stronghold:portal_room` find. Chests hold vanilla's stronghold loot.
 
 ## Playing it
 
@@ -30,7 +30,7 @@ The jar lands in `build/libs/`. `./gradlew test` runs the unit tests: vanilla's 
 
 ### Smoke test
 
-`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and the portal room's spawner, opens a chest of each loot table, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
+`./gradlew runSmokeServer` starts a headless 26.3 server in `run/smoke`, creates an Endless Stronghold world, generates every chunk within 256 blocks of spawn, checks the spawn point and the portal room's spawner, opens a chest of each loot table, follows an eye of ender to the nearest portal room and lights its portal, logs `[smoke] PASS` or `[smoke] FAIL`, and stops. Before the first run, create `run/smoke/eula.txt` containing `eula=true` (this accepts the [Minecraft EULA](https://www.minecraft.net/eula)) and `run/smoke/server.properties` containing `level-type=endless_stronghold\:endless_stronghold`. Delete `run/smoke/world` to test a fresh world.
 
 ## License
 

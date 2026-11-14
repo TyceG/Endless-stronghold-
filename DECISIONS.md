@@ -113,3 +113,11 @@ After Phase 2, `DESIGN.md` was rewritten to describe the stronghold as it is now
 ## No extra loot
 
 Tyce chose not to change the loot: the doc's extra pool (flint, and a rare eye of ender) is dropped. Chests now use vanilla's stronghold loot tables directly (`minecraft:chests/stronghold_corridor`, `_crossing` and `_library`), and the mod's own tables, which only existed to add that pool, are gone.
+
+## Phase 3
+
+**Portal rooms are found by the generator, not by a structure set.** Eyes of ender and `/locate` both call `ChunkGenerator.findNearestMapStructure`. A marker structure, `endless_stronghold:portal_room` (a structure type that never generates anything, with no structure set), is in `#minecraft:eye_of_ender_located`. The generator overrides `findNearestMapStructure`: when the marker is asked for, it searches the region plans outward ring by ring and returns the nearest portal room's centre (vanilla's `getCenter`, where vanilla points eyes). Regions nobody has visited are grown on the spot. No mixin is needed.
+
+**Eyes only ever point at portal rooms.** When the marker is among the structures asked for, only it is answered, so an eye never flies toward where a vanilla stronghold would be; vanilla strongholds can't generate in this world.
+
+**`/locate` ignores the world's "generate structures" setting** for portal rooms, since they're part of the stronghold itself.

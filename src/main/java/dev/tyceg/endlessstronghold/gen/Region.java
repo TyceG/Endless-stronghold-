@@ -67,6 +67,16 @@ public final class Region {
 		return parts.get(0);
 	}
 
+	/** The region's portal room, or null in the rare region that never grew one. */
+	public Part portalRoom() {
+		for (Part p : parts) {
+			if (p.kind == Kind.PORTAL_ROOM) {
+				return p;
+			}
+		}
+		return null;
+	}
+
 	// ---- Doorways that lead nowhere ----
 
 	public static long pack(int x, int y, int z) {

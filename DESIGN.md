@@ -81,8 +81,8 @@ One world preset gives the Overworld the mod's generator and leaves the Nether a
 | `endless_stronghold/worldgen/world_preset/endless_stronghold.json` | Overworld uses the mod's generator and one fixed biome; Nether and End are copied from vanilla's `minecraft:normal` preset | Done |
 | `minecraft/tags/worldgen/world_preset/normal.json` | Adds the preset to the World Type list, with `"replace": false` | Done |
 | `endless_stronghold/worldgen/biome/stronghold_void.json` | The only Overworld biome: no features, no carvers, the monster spawns from `minecraft:plains` | Done |
-| `endless_stronghold/worldgen/structure/portal_room.json` | A marker structure, so eyes of ender and `/locate` have something to look for (see Portal rooms) | Phase 3 |
-| `minecraft/tags/worldgen/structure/eye_of_ender_located.json` | Adds the marker structure, with `"replace": false` | Phase 3 |
+| `endless_stronghold/worldgen/structure/portal_room.json` | A marker structure, so eyes of ender and `/locate` have something to look for (see Portal rooms) | Done |
+| `minecraft/tags/worldgen/structure/eye_of_ender_located.json` | Adds the marker structure, with `"replace": false` | Done |
 
 Overworld details:
 
@@ -179,7 +179,7 @@ Mobs:
 
 Every region's growth places exactly one portal room, vanilla's piece block for block. It has 12 end portal frames, each with a 10% chance of a pre-placed eye (the portal lights only if all 12 have one), lava, iron bar windows, and a silverfish spawner. These are built already.
 
-### Eyes of ender and /locate (Phase 3)
+### Eyes of ender and /locate
 
 Eyes of ender and `/locate structure` both ask the world's chunk generator for the nearest structure of a kind (`ChunkGenerator.findNearestMapStructure`). The mod's generator can answer that itself, from the regions' plans:
 
@@ -233,10 +233,11 @@ A phase is done when its unit tests pass, the CI build is green, and the player 
 - Walking: from the spawn point, across the spawn region and the next one, a player can walk into every main corridor piece, the next region's hub, and over 85% of all pieces (98 to 99% in practice).
 - No air touches the void; every torch, ladder and button hangs on a solid block (or on a wall a filler corridor broke through, which the game then removes, as in vanilla); doors are whole.
 - The spawn room has a floor and headroom at the spawn point, 12 torches and no infested bricks.
+- Portal rooms: the nearest-portal-room search agrees with checking every region nearby, and the nearest is never more than a region and a half away.
 
 ### In-game smoke test
 
-`./gradlew runSmokeServer`: a headless dev server builds a fresh world and checks that every chunk within 256 blocks of spawn generates, that the spawn point is in the spawn room (also when its chunk wasn't loaded yet), that there's a silverfish spawner, and that a chest of each loot table rolls items. It needs `run/smoke/eula.txt`, so it isn't in CI.
+`./gradlew runSmokeServer`: a headless dev server builds a fresh world and checks that every chunk within 256 blocks of spawn generates, that the spawn point is in the spawn room (also when its chunk wasn't loaded yet), that there's a silverfish spawner, that a chest of each loot table rolls items, and that an eye of ender and `/locate` point into the nearest portal room, whose frames, filled with eyes, vanilla recognises and lights as a portal. It needs `run/smoke/eula.txt`, so it isn't in CI.
 
 ### CI
 
@@ -248,8 +249,8 @@ GitHub Actions runs `./gradlew build` (with the unit tests) on JDK 25 for every 
 2. Explore: rooms are vanilla's, doorways lead to rooms or end at stone, and no hole opens onto the void.
 3. Follow a main corridor out of the spawn region (about 128 blocks north, south, east or west) and carry on into the next region's stronghold.
 4. In spectator mode, fly outside. There is only the stronghold, floating in the void.
-5. Throw an eye of ender. It flies toward the nearest portal room. `/locate structure endless_stronghold:portal_room` finds it too. (Phase 3)
-6. Fill a portal and go through: the End and the dragon fight are vanilla. (Phase 3)
+5. Throw an eye of ender. It flies toward the nearest portal room. `/locate structure endless_stronghold:portal_room` finds it too.
+6. Fill a portal and go through: the End and the dragon fight are vanilla.
 7. Quit and reload: everything matches. A new world with the same seed has the same stronghold.
 8. Flying around at render distance 12 doesn't stall chunk loading.
 9. On a dedicated server with the mod, a player without the mod can join and play.
@@ -258,9 +259,7 @@ GitHub Actions runs `./gradlew build` (with the unit tests) on JDK 25 for every 
 
 1. **Phase 1: walkable skeleton.** Done. Project, CI, world preset and biome, generator, spawn room and spawn fix.
 2. **Phase 2: the real stronghold.** Done. Grown like vanilla, endless, every vanilla piece block for block, block palette, doors, chests with vanilla loot, mob spawning, portal rooms with their spawners. (See `DECISIONS.md` for how it got here: first floors and a maze, then vanilla's growth.)
-3. **Phase 3: finding the End.**
-   - The marker structure, its tag, and the generator's `findNearestMapStructure` override, so eyes of ender and `/locate` find the nearest portal room.
-   - Done when: an eye of ender leads to a portal room, and the End can be reached (checklist 5 and 6).
+3. **Phase 3: finding the End.** Done. The marker structure, its tag, and the generator's `findNearestMapStructure` override: eyes of ender and `/locate` find the nearest portal room, and its frames, filled with eyes, light as a vanilla portal.
 4. **Phase 4: polish.**
    - Generator settings in the preset JSON: the hub height and the lowest height, with today's values as defaults. Region size stays fixed, since changing it would move every region.
    - A performance pass, against a vanilla Overworld chunk.

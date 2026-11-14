@@ -14,7 +14,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.core.BlockPos;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
@@ -124,6 +128,32 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 		int minX = chunk.getPos().getMinBlockX();
 		int minZ = chunk.getPos().getMinBlockZ();
 		build(s.regionAt(minX, minZ), minX, minZ, new DecorationSink(level, minX, minZ, s.seed()));
+	}
+
+	/**
+	 * Eyes of ender and {@code /locate} ask the generator for the nearest
+	 * structure of a kind. For the portal rooms, answer from the regions' plans:
+	 * they're grown with the stronghold, not placed by vanilla's structure
+	 * system, and this finds them in regions nobody has visited yet. Only the
+	 * portal rooms are answered when they're asked for, so an eye never flies
+	 * toward a vanilla stronghold, which can't generate in this world.
+	 */
+	@Override
+	public @Nullable Pair<BlockPos, Holder<Structure>> findNearestMapStructure(
+		ServerLevel level, HolderSet<Structure> wanted, BlockPos pos, int maxSearchRadius, boolean createReference
+	) {
+		for (Holder<Structure> structure : wanted) {
+			if (structure.is(EndlessStronghold.PORTAL_ROOM)) {
+				int rings = maxSearchRadius * 16 / Region.SIZE + 1;
+				Part room = stronghold(level.getSeed()).nearestPortalRoom(pos.getX(), pos.getZ(), rings);
+				if (room == null) {
+					return null;
+				}
+				BlockPos centre = new BlockPos(Stronghold.centreX(room), Stronghold.centreY(room), Stronghold.centreZ(room));
+				return Pair.of(centre, structure);
+			}
+		}
+		return super.findNearestMapStructure(level, wanted, pos, maxSearchRadius, createReference);
 	}
 
 	@Override

@@ -4,6 +4,9 @@ import net.fabricmc.api.ModInitializer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -15,6 +18,7 @@ import org.slf4j.LoggerFactory;
 public class EndlessStronghold implements ModInitializer {
 	public static final String MOD_ID = "endless_stronghold";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public static final ResourceKey<Structure> PORTAL_ROOM = ResourceKey.create(Registries.STRUCTURE, id("portal_room"));
 
 	public static Identifier id(String path) {
 		return Identifier.fromNamespaceAndPath(MOD_ID, path);
@@ -23,6 +27,7 @@ public class EndlessStronghold implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		Registry.register(BuiltInRegistries.CHUNK_GENERATOR, id("endless_stronghold"), EndlessStrongholdGenerator.CODEC);
+		Registry.register(BuiltInRegistries.STRUCTURE_TYPE, id("portal_room"), PortalRoomStructure.TYPE);
 		SmokeTest.registerIfEnabled();
 	}
 

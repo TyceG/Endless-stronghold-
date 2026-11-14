@@ -37,6 +37,60 @@ public final class Stronghold {
 		return region(Region.regionOf(x), Region.regionOf(z));
 	}
 
+	/**
+	 * The portal room nearest to a block column, by horizontal distance to the
+	 * room's centre, searching outward one ring of regions at a time up to
+	 * {@code maxRings} away and stopping as soon as no farther ring could hold
+	 * a nearer one. Returns null if there's none in range.
+	 */
+	public Part nearestPortalRoom(int x, int z, int maxRings) {
+		int rx0 = Region.regionOf(x);
+		int rz0 = Region.regionOf(z);
+		Part best = null;
+		long bestDistance = Long.MAX_VALUE;
+		for (int ring = 0; ring <= maxRings; ring++) {
+			if (best != null) {
+				// Every column in ring r is at least (r - 1) regions away.
+				long nearestPossible = (long) Math.max(0, ring - 1) * Region.SIZE;
+				if (nearestPossible * nearestPossible > bestDistance) {
+					break;
+				}
+			}
+			for (int dx = -ring; dx <= ring; dx++) {
+				for (int dz = -ring; dz <= ring; dz++) {
+					if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
+						continue;
+					}
+					Part room = region(rx0 + dx, rz0 + dz).portalRoom();
+					if (room == null) {
+						continue;
+					}
+					long ddx = centreX(room) - x;
+					long ddz = centreZ(room) - z;
+					long distance = ddx * ddx + ddz * ddz;
+					if (distance < bestDistance) {
+						bestDistance = distance;
+						best = room;
+					}
+				}
+			}
+		}
+		return best;
+	}
+
+	/** Vanilla's BoundingBox.getCenter, which vanilla points eyes of ender at. */
+	public static int centreX(Part p) {
+		return p.box.minX() + (p.box.maxX() - p.box.minX() + 1) / 2;
+	}
+
+	public static int centreY(Part p) {
+		return p.box.minY() + (p.box.maxY() - p.box.minY() + 1) / 2;
+	}
+
+	public static int centreZ(Part p) {
+		return p.box.minZ() + (p.box.maxZ() - p.box.minZ() + 1) / 2;
+	}
+
 	/** Where players spawn: on the floor of the spawn room, between its north doorway and the pillar. */
 	public int[] spawn() {
 		Part hub = region(0, 0).hub();

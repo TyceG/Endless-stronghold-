@@ -1,0 +1,6 @@
+{
+  "type": "endless_stronghold:portal_room",
+  "biomes": [],
+  "spawn_overrides": {},
+  "step": "surface_structures"
+}

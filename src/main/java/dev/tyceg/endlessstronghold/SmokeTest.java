@@ -16,7 +16,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.tags.StructureTags;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EndPortalFrameBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.pattern.BlockPattern;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -157,6 +161,8 @@ final class SmokeTest {
 			failures.add("no solid floor with two air blocks above at the spawn point " + spawn.toShortString());
 		}
 
+		checkPortalRoom(level, spawn, failures);
+
 		// Every loot table should turn up, and roll real items the first time a chest is opened.
 		EndlessStronghold.LOGGER.info("[smoke] {} chests, using {} loot tables", chests, chestPerTable.size());
 		for (Block.Loot loot : Block.Loot.values()) {
@@ -187,6 +193,59 @@ final class SmokeTest {
 			}
 		}
 		return "nothing";
+	}
+
+	/**
+	 * What a player does: ask where the nearest portal room is, as an eye of
+	 * ender does, then put an eye in each of its 12 frames, and check vanilla
+	 * recognises the portal and lights it, as the last eye would.
+	 */
+	private static void checkPortalRoom(ServerLevel level, BlockPos from, List<String> failures) {
+		BlockPos target = level.findNearestMapStructure(StructureTags.EYE_OF_ENDER_LOCATED, from, 100, false);
+		if (target == null) {
+			failures.add("an eye of ender finds no portal room");
+			return;
+		}
+		Region region = ((EndlessStrongholdGenerator) level.getChunkSource().getGenerator()).stronghold(level.getSeed()).regionAt(target.getX(), target.getZ());
+		Part room = region.portalRoom();
+		if (room == null || !room.box.contains(target.getX(), target.getY(), target.getZ())) {
+			failures.add("an eye of ender points at " + target.toShortString() + ", which isn't in a portal room");
+			return;
+		}
+		EndlessStronghold.LOGGER.info("[smoke] an eye of ender points at {}, in the portal room {} blocks away", target.toShortString(), (int) Math.sqrt(target.distSqr(from)));
+		// The /locate command goes the same way; its answer shows in the log.
+		MinecraftServer server = level.getServer();
+		server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withPosition(net.minecraft.world.phys.Vec3.atCenterOf(from)), "locate structure endless_stronghold:portal_room");
+		List<BlockPos> frames = new ArrayList<>();
+		for (BlockPos pos : BlockPos.betweenClosed(room.box.minX(), room.box.minY(), room.box.minZ(), room.box.maxX(), room.box.maxY(), room.box.maxZ())) {
+			if (level.getBlockState(pos).is(Blocks.END_PORTAL_FRAME)) {
+				frames.add(pos.immutable());
+			}
+		}
+		if (frames.size() != 12) {
+			failures.add("the portal room has " + frames.size() + " end portal frames, not 12");
+			return;
+		}
+		for (BlockPos pos : frames) {
+			level.setBlock(pos, level.getBlockState(pos).setValue(EndPortalFrameBlock.HAS_EYE, true), 2);
+		}
+		BlockPattern.BlockPatternMatch match = EndPortalFrameBlock.getOrCreatePortalShape().find(level, frames.get(0));
+		if (match == null) {
+			failures.add("with all 12 eyes in, vanilla doesn't recognise the portal room's frames as a portal");
+			return;
+		}
+		BlockPos corner = match.getFrontTopLeft().offset(-3, 0, -3);
+		int lit = 0;
+		for (int x = 0; x < 3; x++) {
+			for (int z = 0; z < 3; z++) {
+				BlockPos pos = corner.offset(x, 0, z);
+				level.setBlock(pos, Blocks.END_PORTAL.defaultBlockState(), 2);
+				if (level.getBlockState(pos).is(Blocks.END_PORTAL)) {
+					lit++;
+				}
+			}
+		}
+		EndlessStronghold.LOGGER.info("[smoke] with all 12 eyes in, the portal lights: {} end portal blocks at {}", lit, corner.toShortString());
 	}
 
 	private static boolean solid(ServerLevel level, BlockPos pos) {
