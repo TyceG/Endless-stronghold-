@@ -59,6 +59,19 @@ final class SmokeTest {
 	private static void run(MinecraftServer server) {
 		List<String> failures = new ArrayList<>();
 		ServerLevel level = server.overworld();
+		if (!(level.getChunkSource().getGenerator() instanceof EndlessStrongholdGenerator)) {
+			// A normal world: just time the same chunks, to compare against (./gradlew runBenchServer).
+			long start = System.nanoTime();
+			for (int cx = -RADIUS_CHUNKS; cx <= RADIUS_CHUNKS; cx++) {
+				for (int cz = -RADIUS_CHUNKS; cz <= RADIUS_CHUNKS; cz++) {
+					level.getChunk(cx, cz);
+				}
+			}
+			int chunks = (2 * RADIUS_CHUNKS + 1) * (2 * RADIUS_CHUNKS + 1);
+			EndlessStronghold.LOGGER.info("[smoke] benchmark, {}: generated {} chunks in {} ms", level.getChunkSource().getGenerator().getClass().getSimpleName(), chunks, (System.nanoTime() - start) / 1_000_000);
+			server.halt(false);
+			return;
+		}
 		BlockPos spawn = server.getRespawnData().pos();
 		// A spot on a floor far away, in a chunk nothing has loaded yet: what a player
 		// meets when they join a new world before its spawn area has loaded. The

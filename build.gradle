@@ -28,6 +28,15 @@ loom {
 			programArg "nogui"
 			ideConfigGenerated = false
 		}
+		// The same chunks in a normal Overworld, for a speed comparison. Needs run/bench/eula.txt.
+		benchServer {
+			server()
+			name = "Benchmark Server"
+			runDir = "run/bench"
+			vmArg "-Dendless_stronghold.smoke=true"
+			programArg "nogui"
+			ideConfigGenerated = false
+		}
 	}
 }
 

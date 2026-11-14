@@ -121,3 +121,11 @@ Tyce chose not to change the loot: the doc's extra pool (flint, and a rare eye o
 **Eyes only ever point at portal rooms.** When the marker is among the structures asked for, only it is answered, so an eye never flies toward where a vanilla stronghold would be; vanilla strongholds can't generate in this world.
 
 **`/locate` ignores the world's "generate structures" setting** for portal rooms, since they're part of the stronghold itself.
+
+## Phase 4
+
+**Settings are the two heights.** The preset's `settings` now hold `hub_y` (default 30) and `lowest_y` (default -24, at least 12 below `hub_y`); the old `floors` and `base_y` are gone. The region size isn't a setting: changing it would move every region. The settings are changed with a data pack that replaces the world preset; the smoke server confirmed a data pack with `hub_y` 60 moves the whole stronghold up 30 blocks.
+
+**No performance pass needed.** Against a normal Overworld with the same seed and chunks, the stronghold generates about five times faster (4.3 s against 21.3 s for 1,089 chunks).
+
+**Release.** A tag-triggered workflow attaches the jar to a GitHub release. Publishing to Modrinth is done by hand from `MODRINTH.md`; automating it would need a Modrinth token in the repository's secrets.

@@ -14,23 +14,21 @@ public final class Region {
 	public static final int HALF = SIZE / 2;
 	/** The hub's box starts this far into the region, which centres its 11 x 11 room. */
 	public static final int HUB_OFFSET = HALF - 5;
-	/** The hub's floor. */
-	public static final int HUB_Y = 30;
-	/** Like vanilla's isOkBox (lowest Y above 10, 54 below its start at 64): pieces stay above this. */
-	public static final int LOWEST_Y = HUB_Y - 54;
 	/** Vanilla starts over until its stronghold has a portal room; so does each region, this many times. */
 	static final int MAX_ATTEMPTS = 20;
 
 	public final int rx;
 	public final int rz;
+	public final Heights heights;
 	public final Box box;
 	public final List<Part> parts;
 	/** Blocks of stone behind doorways that lead nowhere, packed with {@link #pack}. */
 	public final long[] plugs;
 
-	private Region(int rx, int rz, List<Part> parts, long[] plugs) {
+	private Region(int rx, int rz, Heights heights, List<Part> parts, long[] plugs) {
 		this.rx = rx;
 		this.rz = rz;
+		this.heights = heights;
 		this.box = box(rx, rz);
 		this.parts = parts;
 		this.plugs = plugs;
@@ -50,17 +48,17 @@ public final class Region {
 		return new Box(ox, -64, oz, ox + SIZE - 1, 319, oz + SIZE - 1);
 	}
 
-	static Region build(long seed, int rx, int rz) {
+	static Region build(long seed, int rx, int rz, Heights heights) {
 		List<Part> parts = null;
 		for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-			Grower grower = new Grower(seed, rx, rz, attempt);
+			Grower grower = new Grower(seed, rx, rz, attempt, heights);
 			parts = grower.grow();
 			if (grower.hasPortalRoom()) {
 				break;
 			}
 		}
-		Region region = new Region(rx, rz, parts, null);
-		return new Region(rx, rz, parts, region.findPlugs());
+		Region region = new Region(rx, rz, heights, parts, null);
+		return new Region(rx, rz, heights, parts, region.findPlugs());
 	}
 
 	public Part hub() {

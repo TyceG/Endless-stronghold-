@@ -68,7 +68,7 @@ public class EndlessStrongholdGenerator extends ChunkGenerator {
 	public Stronghold stronghold(long seed) {
 		Stronghold current = stronghold;
 		if (current == null || current.seed() != seed) {
-			current = new Stronghold(seed);
+			current = new Stronghold(seed, settings.heights());
 			stronghold = current;
 		}
 		return current;

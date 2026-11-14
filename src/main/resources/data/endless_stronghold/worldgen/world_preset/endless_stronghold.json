@@ -7,6 +7,10 @@
         "biome_source": {
           "type": "minecraft:fixed",
           "biome": "endless_stronghold:stronghold_void"
+        },
+        "settings": {
+          "hub_y": 30,
+          "lowest_y": -24
         }
       }
     },

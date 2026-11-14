@@ -54,6 +54,7 @@ final class Grower {
 	private final int rx;
 	private final int rz;
 	private final Box region;
+	private final Heights heights;
 	private final Rng rng;
 	private final List<Part> parts = new ArrayList<>();
 	private final List<Part> pending = new ArrayList<>();
@@ -63,10 +64,11 @@ final class Grower {
 	private int totalWeight;
 	private boolean portalRoom;
 
-	Grower(long seed, int rx, int rz, int attempt) {
+	Grower(long seed, int rx, int rz, int attempt, Heights heights) {
 		this.seed = seed;
 		this.rx = rx;
 		this.rz = rz;
+		this.heights = heights;
 		this.region = Region.box(rx, rz);
 		this.rng = new Rng(Hash.of(seed, GROW_SALT, rx, rz, attempt));
 	}
@@ -109,7 +111,7 @@ final class Grower {
 	private Part makeHub() {
 		int minX = region.minX() + Region.HUB_OFFSET;
 		int minZ = region.minZ() + Region.HUB_OFFSET;
-		Box box = new Box(minX, Region.HUB_Y, minZ, minX + 10, Region.HUB_Y + 6, minZ + 10);
+		Box box = new Box(minX, heights.hubY(), minZ, minX + 10, heights.hubY() + 6, minZ + 10);
 		Part hub = new Part(Kind.ROOM_CROSSING, Dir.SOUTH, box, 0, rng.nextLong());
 		hub.entryDoor = randomSmallDoor();
 		hub.crossingType = rng.nextInt(5);
@@ -232,7 +234,7 @@ final class Grower {
 
 	/** Vanilla's isOkBox (above the lowest height) and no-overlap check, plus staying inside the region. */
 	private boolean fits(Box box) {
-		return box.minY() > Region.LOWEST_Y && region.containsXZ(box) && findCollision(box) == null;
+		return box.minY() > heights.lowestY() && region.containsXZ(box) && findCollision(box) == null;
 	}
 
 	private Part create(Kind kind, int fx, int fy, int fz, Dir dir, int depth) {
@@ -295,7 +297,7 @@ final class Grower {
 			}
 		}
 		Box box = fillerBox(fx, fy, fz, dir);
-		return box != null && box.minY() > Region.LOWEST_Y && region.containsXZ(box) ? construct(Kind.FILLER_CORRIDOR, box, dir, depth) : null;
+		return box != null && box.minY() > heights.lowestY() && region.containsXZ(box) ? construct(Kind.FILLER_CORRIDOR, box, dir, depth) : null;
 	}
 
 	/** Vanilla's FillerCorridor.findPieceBox: a short corridor up to the piece it would run into. */

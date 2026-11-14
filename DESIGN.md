@@ -70,7 +70,7 @@ Since 26.1 the build uses `implementation` (not `modImplementation`) and builds 
 | Mobs | Overworld monsters spawn in dark rooms; no animals | Source of ender pearls, string, bones and gunpowder |
 | Loot | Vanilla's stronghold loot tables, unchanged | As in a vanilla stronghold |
 | Spawn | The spawn region's hub: a lit pillar room at (0, 31, -3); respawn radius 0 | Players never land on the roof |
-| Settings | Generator settings live in the world preset JSON | No settings screen in version 1 |
+| Settings | `hub_y` (30) and `lowest_y` (-24) in the world preset JSON, changed with a data pack | No settings screen in version 1; region size fixed |
 
 ## World setup
 
@@ -219,7 +219,7 @@ Growth is plain Java with no Minecraft imports. The Minecraft-facing classes are
 ### Threading and speed
 
 - Several threads generate chunks at once. No static mutable state; region plans are immutable and kept in a bounded, lock-free cache.
-- Measured: 1,089 chunks in about 4 seconds on a dev server, including growing their regions.
+- Measured on a dev server, the same 1,089 chunks and seed: about 4.3 seconds as an Endless Stronghold world, about 21.3 seconds as a normal Overworld (`./gradlew runBenchServer`). About five times faster.
 
 ## Testing and acceptance criteria
 
@@ -261,10 +261,8 @@ GitHub Actions runs `./gradlew build` (with the unit tests) on JDK 25 for every 
 2. **Phase 2: the real stronghold.** Done. Grown like vanilla, endless, every vanilla piece block for block, block palette, doors, chests with vanilla loot, mob spawning, portal rooms with their spawners. (See `DECISIONS.md` for how it got here: first floors and a maze, then vanilla's growth.)
 3. **Phase 3: finding the End.** Done. The marker structure, its tag, and the generator's `findNearestMapStructure` override: eyes of ender and `/locate` find the nearest portal room, and its frames, filled with eyes, light as a vanilla portal.
 4. **Phase 4: polish.**
-   - Generator settings in the preset JSON: the hub height and the lowest height, with today's values as defaults. Region size stays fixed, since changing it would move every region.
-   - A performance pass, against a vanilla Overworld chunk.
-   - A README with screenshots, and release metadata for Modrinth.
-   - Confirm checklist 9 (players without the mod), which hasn't been tried yet.
+   - Done: generator settings `hub_y` and `lowest_y` in the preset (tested through a data pack); the speed check (about five times faster than a normal Overworld); a new icon; a README with a map of the stronghold; `MODRINTH.md` (the Modrinth page text), `CHANGELOG.md`, contact links in `fabric.mod.json`, and a workflow that attaches the jar to a GitHub release when a version tag is pushed.
+   - Left: confirm checklist 9 (a player without the mod joins a server with it); in-game screenshots for the README and the Modrinth gallery; publishing 1.0.0 (a version tag for the GitHub release, and uploading to Modrinth, which needs a Modrinth account).
    - Done when: the full checklist passes on a fresh world.
 
 ## Risks and gotchas

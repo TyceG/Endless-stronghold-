@@ -12,10 +12,20 @@ public final class Stronghold {
 	private static final int CACHE_SIZE = 64;
 
 	private final long seed;
+	private final Heights heights;
 	private final AtomicReferenceArray<Region> cache = new AtomicReferenceArray<>(CACHE_SIZE);
 
 	public Stronghold(long seed) {
+		this(seed, Heights.DEFAULT);
+	}
+
+	public Stronghold(long seed, Heights heights) {
 		this.seed = seed;
+		this.heights = heights;
+	}
+
+	public Heights heights() {
+		return heights;
 	}
 
 	public long seed() {
@@ -26,7 +36,7 @@ public final class Stronghold {
 		int slot = (int) (Hash.of(rx, rz) & (CACHE_SIZE - 1));
 		Region region = cache.get(slot);
 		if (region == null || region.rx != rx || region.rz != rz) {
-			region = Region.build(seed, rx, rz);
+			region = Region.build(seed, rx, rz, heights);
 			cache.set(slot, region);
 		}
 		return region;

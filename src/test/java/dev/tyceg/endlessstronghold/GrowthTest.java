@@ -41,7 +41,7 @@ class GrowthTest {
 				for (int i = 0; i < r.parts.size(); i++) {
 					Part p = r.parts.get(i);
 					assertTrue(r.box.containsXZ(p.box), p + " leaves region " + rx + ", " + rz);
-					assertTrue(p.box.minY() > Region.LOWEST_Y || p.trunk, p + " is below the lowest height");
+					assertTrue(p.box.minY() > r.heights.lowestY() || p.trunk, p + " is below the lowest height");
 					assertTrue(p.depth <= 51, p + " is deeper than vanilla's limit");
 					if (!p.trunk) {
 						counts.merge(p.kind, 1, Integer::sum);
@@ -68,6 +68,23 @@ class GrowthTest {
 		for (Kind k : Kind.values()) {
 			assertTrue(totals.getOrDefault(k, 0) > 0, k + " never appears: " + totals);
 		}
+	}
+
+	/** The heights setting moves the whole stronghold: hub, spawn and lowest height. */
+	@Test
+	void heightsSettingMovesTheStronghold() {
+		Stronghold s = new Stronghold(SEED, new dev.tyceg.endlessstronghold.gen.Heights(100, 50));
+		for (int rx = -1; rx <= 1; rx++) {
+			for (int rz = -1; rz <= 1; rz++) {
+				Region r = s.region(rx, rz);
+				assertEquals(100, r.hub().box.minY());
+				for (Part p : r.parts) {
+					assertTrue(p.box.minY() > 50 || p.trunk, p + " is below the lowest height");
+				}
+			}
+		}
+		assertEquals(101, s.spawn()[1]);
+		assertThrows(IllegalArgumentException.class, () -> new dev.tyceg.endlessstronghold.gen.Heights(30, 25));
 	}
 
 	/** Each main corridor ends on the region's edge, in line and level with the next region's. */
