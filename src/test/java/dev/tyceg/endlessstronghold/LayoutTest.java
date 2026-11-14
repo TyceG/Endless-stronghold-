@@ -2,21 +2,27 @@ package dev.tyceg.endlessstronghold;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.tyceg.endlessstronghold.layout.Cell;
 import dev.tyceg.endlessstronghold.layout.Dir;
 import dev.tyceg.endlessstronghold.layout.Edge;
 import dev.tyceg.endlessstronghold.layout.Hash;
 import dev.tyceg.endlessstronghold.layout.LayoutService;
 import dev.tyceg.endlessstronghold.layout.RegionMaze;
 import dev.tyceg.endlessstronghold.layout.RoomType;
+import dev.tyceg.endlessstronghold.layout.StairPlan;
 import java.util.ArrayDeque;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.SplittableRandom;
 import org.junit.jupiter.api.Test;
 
 class LayoutTest {
 	private static final long SEED = 1234567890123L;
 	private static final int FLOORS = 4;
+	private static final int NS = Dir.NORTH.bit() | Dir.SOUTH.bit();
+	private static final int EW = Dir.EAST.bit() | Dir.WEST.bit();
 
 	private static LayoutService layout(long seed) {
 		return new LayoutService(seed, FLOORS, 0);
@@ -37,7 +43,10 @@ class LayoutTest {
 			assertEquals(Edge.of(cx, cz, floor, side), Edge.of(ncx, ncz, floor, side.opposite()));
 			// Ask the two sides through two different services, so no cache can paper over a disagreement.
 			assertEquals(layout.isOpen(cx, cz, floor, side), fresh.isOpen(ncx, ncz, floor, side.opposite()));
-			assertEquals(layout.doorType(cx, cz, floor, side), fresh.doorType(ncx, ncz, floor, side.opposite()));
+			if (layout.isOpen(cx, cz, floor, side)) {
+				assertEquals(layout.doorType(cx, cz, floor, side), fresh.doorType(ncx, ncz, floor, side.opposite()));
+				assertEquals(layout.lane(cx, cz, floor, side), fresh.lane(ncx, ncz, floor, side.opposite()));
+			}
 		}
 	}
 
@@ -96,45 +105,69 @@ class LayoutTest {
 	}
 
 	@Test
-	void twoStaircasesPerFloorPairPerRegionInDistinctCells() {
-		LayoutService layout = layout(SEED);
-		for (int rx = -3; rx <= 3; rx++) {
-			for (int rz = -3; rz <= 3; rz++) {
-				for (int f = 0; f + 1 < FLOORS; f++) {
-					int count = 0;
-					for (int lx = 0; lx < 8; lx++) {
-						for (int lz = 0; lz < 8; lz++) {
-							int cx = rx * 8 + lx;
-							int cz = rz * 8 + lz;
-							if (layout.stairUp(cx, cz, f)) {
+	void twoStaircasesPerFloorPairPerRegionEachWithAPlanThatFits() {
+		for (long seed : new long[] {SEED, 99L}) {
+			LayoutService layout = layout(seed);
+			for (int rx = -4; rx <= 4; rx++) {
+				for (int rz = -4; rz <= 4; rz++) {
+					for (int f = 0; f + 1 < FLOORS; f++) {
+						int count = 0;
+						for (int lx = 0; lx < 8; lx++) {
+							for (int lz = 0; lz < 8; lz++) {
+								int cx = rx * 8 + lx;
+								int cz = rz * 8 + lz;
+								if (!layout.stairUp(cx, cz, f)) {
+									continue;
+								}
 								count++;
 								assertFalse(layout.stairDown(cx, cz, f), "a cell is both the top and the bottom of a staircase");
 								assertEquals(RoomType.STAIRS_BOTTOM, layout.roomAt(cx, cz, f));
 								assertEquals(RoomType.STAIRS_TOP, layout.roomAt(cx, cz, f + 1));
+								StairPlan plan = layout.stairPlan(cx, cz, f);
+								assertTrue(StairPlan.valid(plan.sideA(), plan.sideB(), layout.openSides(cx, cz, f + 1), layout.openSides(cx, cz, f)));
+								int[] path = plan.midPath();
+								for (int i : path) {
+									assertNotEquals(plan.a(), i, "the halfway corridor runs through stair piece A");
+									assertNotEquals(plan.b(), i, "the halfway corridor runs through stair piece B");
+								}
 							}
 						}
+						assertEquals(RegionMaze.STAIRS_PER_FLOOR_PAIR, count, "region " + rx + ", " + rz + " floors " + f + "-" + (f + 1));
 					}
-					assertEquals(RegionMaze.STAIRS_PER_FLOOR_PAIR, count, "region " + rx + ", " + rz + " floors " + f + "-" + (f + 1));
 				}
-				assertFalse(layout.stairUp(rx * 8, rz * 8, FLOORS - 1), "stairs going up from the top floor");
 			}
 		}
 	}
 
 	@Test
-	void roomsFitTheirOpenSidesAndEveryRoomTurnsUp() {
+	void roomsFitTheirCellsAndTheirNeighbours() {
 		LayoutService layout = layout(SEED);
 		Map<RoomType, Integer> counts = new EnumMap<>(RoomType.class);
 		for (int cx = -40; cx < 40; cx++) {
 			for (int cz = -40; cz < 40; cz++) {
 				for (int f = 0; f < FLOORS; f++) {
-					RoomType type = layout.roomAt(cx, cz, f);
-					int open = layout.openSides(cx, cz, f);
-					assertTrue(open != 0, "a cell with no open side at " + cx + ", " + cz + ", " + f);
-					if (type.weight > 0) {
-						assertTrue(type.fits(open), type + " in a cell with sides " + Integer.toBinaryString(open));
+					Cell cell = layout.cell(cx, cz, f);
+					int open = cell.open();
+					String where = cell.type() + " at " + cx + ", " + cz + ", " + f + " sides " + Integer.toBinaryString(open);
+					assertTrue(open != 0, "a cell with no open side: " + where);
+					switch (cell.type()) {
+						case LIBRARY -> {
+							assertEquals(1, Integer.bitCount(open), "a library with more than one door: " + where);
+							Dir side = cell.entry();
+							assertEquals(RoomType.HALL, layout.roomAt(cx + side.dx, cz + side.dz, f), "a library's neighbour isn't a hall: " + where);
+						}
+						case CHEST_CORRIDOR, PRISON_HALL -> assertTrue(open == NS || open == EW, where);
+						case FIVE_WAY_CROSSING -> {
+							Dir entry = cell.entry();
+							assertTrue(entry == Dir.SOUTH || entry == Dir.EAST, where);
+							assertTrue(cell.isOpen(entry) && !cell.isOpen(entry.opposite()), where);
+							assertFalse(f > 0 && layout.roomAt(cx, cz, f - 1) == RoomType.LIBRARY && layout.libraryTall(cx, cz, f - 1),
+								"five-way crossing sinks into a tall library: " + where);
+						}
+						default -> {
+						}
 					}
-					counts.merge(type, 1, Integer::sum);
+					counts.merge(cell.type(), 1, Integer::sum);
 				}
 			}
 		}
@@ -171,9 +204,13 @@ class LayoutTest {
 	void doorTypesFollowVanillaOdds() {
 		LayoutService layout = layout(SEED);
 		int[] counts = new int[4];
+		Set<Long> seen = new HashSet<>();
 		for (int cx = 0; cx < 100; cx++) {
 			for (int cz = 0; cz < 100; cz++) {
-				counts[layout.doorType(cx, cz, 0, Dir.EAST).ordinal()]++;
+				// Raw odds, before the rule that swaps iron doors in front of some libraries.
+				int roll = Hash.below(new Edge(cx, cz, 0, Dir.EAST).hash(SEED, Hash.salt("door")), 5);
+				counts[roll < 2 ? 0 : roll - 1]++;
+				seen.add((long) cx);
 			}
 		}
 		// 2/5 openings, 1/5 each of the others, within a few percent over 10,000 edges.
@@ -184,12 +221,12 @@ class LayoutTest {
 	}
 
 	@Test
-	void floorsSitSixteenBlocksApart() {
+	void floorsSitTwelveBlocksApart() {
 		LayoutService layout = layout(SEED);
 		assertEquals(0, layout.floorY(0));
-		assertEquals(16, layout.floorY(1));
-		assertEquals(32, layout.floorY(2));
-		assertEquals(48, layout.floorY(3));
+		assertEquals(12, layout.floorY(1));
+		assertEquals(24, layout.floorY(2));
+		assertEquals(36, layout.floorY(3));
 	}
 
 	@Test

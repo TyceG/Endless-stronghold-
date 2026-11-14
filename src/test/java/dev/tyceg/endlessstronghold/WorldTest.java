@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import dev.tyceg.endlessstronghold.layout.Dir;
 import dev.tyceg.endlessstronghold.layout.LayoutService;
+import dev.tyceg.endlessstronghold.layout.RoomType;
 import dev.tyceg.endlessstronghold.rooms.Block;
 import dev.tyceg.endlessstronghold.rooms.SpawnRoom;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,7 +21,7 @@ import org.junit.jupiter.api.Test;
  * does, one cell at a time, and checks the result as a player would meet it.
  */
 class WorldTest {
-	private static final long[] SEEDS = {-8_675_309L, 20261114L, 1L};
+	private static final long[] SEEDS = {-8_675_309L, 20261114L, 1L, 12345L};
 	private static final int MIN_C = -8;
 	private static final int SIZE = 16;
 	private static final int[][] SIX = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
@@ -31,6 +33,14 @@ class WorldTest {
 		for (long seed : SEEDS) {
 			WORLDS.add(World.build(new LayoutService(seed, 4, 0), MIN_C, MIN_C, SIZE));
 		}
+	}
+
+	private static int[] spawn(World world) {
+		return new int[] {
+			(LayoutService.SPAWN_CX - MIN_C) * 16 + SpawnRoom.SPAWN_X,
+			world.floorGridY(LayoutService.SPAWN_FLOOR) + SpawnRoom.SPAWN_Y,
+			(LayoutService.SPAWN_CZ - MIN_C) * 16 + SpawnRoom.SPAWN_Z
+		};
 	}
 
 	@Test
@@ -58,27 +68,23 @@ class WorldTest {
 	@Test
 	void spawnPointHasAFloorAndHeadroom() {
 		for (World world : WORLDS) {
-			int sx = (LayoutService.SPAWN_CX - MIN_C) * 16 + SpawnRoom.SPAWN_X;
-			int sz = (LayoutService.SPAWN_CZ - MIN_C) * 16 + SpawnRoom.SPAWN_Z;
-			int sy = world.layout.floorY(LayoutService.SPAWN_FLOOR) + SpawnRoom.SPAWN_Y;
-			assertTrue(world.get(sx, sy - 1, sz).isSolid(), "no floor under the spawn point");
-			assertEquals(Block.AIR, world.get(sx, sy, sz));
-			assertEquals(Block.AIR, world.get(sx, sy + 1, sz));
+			int[] s = spawn(world);
+			assertTrue(world.get(s[0], s[1] - 1, s[2]).isSolid(), "no floor under the spawn point");
+			assertEquals(Block.AIR, world.get(s[0], s[1], s[2]));
+			assertEquals(Block.AIR, world.get(s[0], s[1] + 1, s[2]));
 		}
 	}
 
 	/**
 	 * Every cell the maze connects to spawn inside the test area can be walked
-	 * to on foot from the spawn point, on every floor, up the stairs.
+	 * to on foot from the spawn point, on every floor, up and down the stairs.
 	 */
 	@Test
 	void everyConnectedCellCanBeWalkedTo() {
 		for (World world : WORLDS) {
 			LayoutService layout = world.layout;
-			int sx = (LayoutService.SPAWN_CX - MIN_C) * 16 + SpawnRoom.SPAWN_X;
-			int sz = (LayoutService.SPAWN_CZ - MIN_C) * 16 + SpawnRoom.SPAWN_Z;
-			int sy = layout.floorY(LayoutService.SPAWN_FLOOR) + SpawnRoom.SPAWN_Y;
-			Walker walker = Walker.from(world, sx, sy, sz);
+			int[] s = spawn(world);
+			Walker walker = Walker.from(world, s[0], s[1], s[2]);
 
 			Set<List<Integer>> connected = connectedInArea(layout);
 			assertEquals(SIZE * SIZE * layout.floors(), connected.size(),
@@ -93,11 +99,12 @@ class WorldTest {
 		}
 	}
 
+	/** Some spot on this cell's floor (its own 12 blocks) was reached. */
 	private static boolean walkedInto(Walker walker, World world, int cx, int cz, int floor) {
 		int gx0 = (cx - MIN_C) * 16;
 		int gz0 = (cz - MIN_C) * 16;
-		int y0 = world.layout.floorY(floor);
-		for (int y = y0 + 1; y < y0 + 16; y++) {
+		int y0 = world.floorGridY(floor);
+		for (int y = y0 + 1; y <= y0 + 4; y++) {
 			for (int x = gx0; x < gx0 + 16; x++) {
 				for (int z = gz0; z < gz0 + 16; z++) {
 					if (walker.reached(x, y, z)) {
@@ -144,15 +151,79 @@ class WorldTest {
 	}
 
 	@Test
+	void hangingBlocksHangOnSolidBlocksAndDoorsAreWhole() {
+		for (World world : WORLDS) {
+			int n = world.widthBlocks();
+			// The outer ring of chunks hangs things on chunks the test doesn't build.
+			for (int x = 16; x < n - 16; x++) {
+				for (int z = 16; z < n - 16; z++) {
+					for (int y = 1; y + 1 < world.height; y++) {
+						Block b = world.get(x, y, z);
+						if (b == null) {
+							continue;
+						}
+						String where = b.kind() + " at " + world.where(x, y, z);
+						if (b.isAttached()) {
+							Dir back = b.facing().opposite();
+							Block wall = world.get(x + back.dx, y, z + back.dz);
+							assertTrue(wall != null && (wall.isSolid() || wall.kind() == Block.Kind.OAK_PLANKS || wall.kind() == Block.Kind.COBBLESTONE),
+								where + " hangs on " + wall);
+						}
+						if (b.kind() == Block.Kind.TORCH || b.kind() == Block.Kind.CHEST) {
+							Block below = world.get(x, y - 1, z);
+							assertTrue(below != null && !Walker.passable(below), where + " stands on " + below);
+						}
+						if (b.isDoor()) {
+							Block other = b.upperHalf() ? world.get(x, y - 1, z) : world.get(x, y + 1, z);
+							assertTrue(other != null && other.kind() == b.kind() && other.upperHalf() != b.upperHalf(), where + " is half a door");
+						}
+					}
+				}
+			}
+		}
+	}
+
+	@Test
+	void everyRoomTypeIsBuiltAndHasItsChests() {
+		Set<RoomType> seen = EnumSet.noneOf(RoomType.class);
+		int chests = 0;
+		for (World world : WORLDS) {
+			for (int cx = MIN_C; cx < MIN_C + SIZE; cx++) {
+				for (int cz = MIN_C; cz < MIN_C + SIZE; cz++) {
+					for (int f = 0; f < world.layout.floors(); f++) {
+						seen.add(world.layout.roomAt(cx, cz, f));
+					}
+				}
+			}
+			for (int x = 0; x < world.widthBlocks(); x++) {
+				for (int z = 0; z < world.widthBlocks(); z++) {
+					for (int y = 0; y < world.height; y++) {
+						Block b = world.get(x, y, z);
+						if (b != null && b.kind() == Block.Kind.CHEST) {
+							chests++;
+						}
+					}
+				}
+			}
+		}
+		for (RoomType type : RoomType.values()) {
+			if (type != RoomType.EMPTY) {
+				assertTrue(seen.contains(type), type + " never built in " + SEEDS.length + " test worlds: " + seen);
+			}
+		}
+		assertTrue(chests > 20, "only " + chests + " chests");
+	}
+
+	@Test
 	void spawnRoomIsLit() {
 		World world = WORLDS.get(0);
 		int ox = (LayoutService.SPAWN_CX - MIN_C) * 16;
 		int oz = (LayoutService.SPAWN_CZ - MIN_C) * 16;
-		int y0 = world.layout.floorY(LayoutService.SPAWN_FLOOR);
+		int y0 = world.floorGridY(LayoutService.SPAWN_FLOOR);
 		int torches = 0;
 		for (int x = 0; x < 16; x++) {
 			for (int z = 0; z < 16; z++) {
-				for (int y = 0; y < 16; y++) {
+				for (int y = 0; y < 8; y++) {
 					Block b = world.get(ox + x, y0 + y, oz + z);
 					if (b != null && (b.kind() == Block.Kind.WALL_TORCH || b.kind() == Block.Kind.TORCH)) {
 						torches++;
@@ -160,7 +231,7 @@ class WorldTest {
 				}
 			}
 		}
-		assertTrue(torches >= 12, "spawn room has only " + torches + " torches");
+		assertEquals(12, torches, "the spawn room's torches");
 	}
 
 	@Test
@@ -168,9 +239,9 @@ class WorldTest {
 		World world = WORLDS.get(0);
 		int ox = (LayoutService.SPAWN_CX - MIN_C) * 16;
 		int oz = (LayoutService.SPAWN_CZ - MIN_C) * 16;
-		int y0 = world.layout.floorY(LayoutService.SPAWN_FLOOR);
-		// The spawn cell, plus the connectors of its east and south neighbours.
-		for (int y = 0; y < 16; y++) {
+		int y0 = world.floorGridY(LayoutService.SPAWN_FLOOR);
+		// The spawn room itself, plus the connectors of its east and south neighbours.
+		for (int y = 0; y < 8; y++) {
 			for (int x = 0; x < 16; x++) {
 				for (int z = 0; z < 16; z++) {
 					Block b = world.get(ox + x, y0 + y, oz + z);

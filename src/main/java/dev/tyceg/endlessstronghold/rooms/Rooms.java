@@ -1,12 +1,16 @@
 package dev.tyceg.endlessstronghold.rooms;
 
+import dev.tyceg.endlessstronghold.layout.Cell;
 import dev.tyceg.endlessstronghold.layout.Dir;
 import dev.tyceg.endlessstronghold.layout.DoorType;
+import dev.tyceg.endlessstronghold.layout.Hash;
 import dev.tyceg.endlessstronghold.layout.LayoutService;
 import dev.tyceg.endlessstronghold.layout.RoomType;
 
 /** Builds a whole cell: its west and north connectors with their doors, then its room. */
 public final class Rooms {
+	private static final long ENTRY_DOOR_SALT = Hash.salt("entry door");
+
 	private Rooms() {
 	}
 
@@ -18,9 +22,9 @@ public final class Rooms {
 			case STAIRS_TOP -> StairsRoom.TOP;
 			case HALL -> HallRoom.INSTANCE;
 			case LIBRARY -> LibraryRoom.INSTANCE;
-			case CHEST_HALL -> ChestHallRoom.INSTANCE;
+			case CHEST_CORRIDOR -> ChestCorridorRoom.INSTANCE;
 			case PRISON_HALL -> PrisonHallRoom.INSTANCE;
-			case GRAND_CROSSING -> GrandCrossingRoom.INSTANCE;
+			case FIVE_WAY_CROSSING -> FiveWayCrossingRoom.INSTANCE;
 			case PILLAR_ROOM -> CrossingRoom.PILLAR;
 			case FOUNTAIN_ROOM -> CrossingRoom.FOUNTAIN;
 			case STOREROOM -> CrossingRoom.STOREROOM;
@@ -28,41 +32,49 @@ public final class Rooms {
 		};
 	}
 
+	/** A room's own front door: one of vanilla's small doors, rolled with vanilla's odds. */
+	static DoorType entryDoor(Cell cell) {
+		return DoorType.fromRoll(Hash.below(Hash.mix(cell.hash() ^ ENTRY_DOOR_SALT), 5));
+	}
+
+	/** Whether the room builds this side's connector itself, as its front wall. */
+	private static boolean roomOwnsConnector(Cell cell, Dir side) {
+		return cell.type() == RoomType.LIBRARY && side == cell.entry() && LibraryRoom.frontWallIsConnector(side);
+	}
+
 	public static void buildCell(LayoutService layout, int cx, int cz, int floor, CellWriter writer) {
 		if (!layout.cellExists(cx, cz, floor)) {
 			return;
 		}
-		int open = layout.openSides(cx, cz, floor);
-		boolean spawnHere = LayoutService.isSpawnCell(cx, cz, floor);
-		if (Dir.has(open, Dir.WEST)) {
-			boolean safe = spawnHere || LayoutService.isSpawnCell(cx - 1, cz, floor);
-			Connectors.west(writer, layout.doorType(cx, cz, floor, Dir.WEST), safe ? Block.SAFE_WALL : Block.WALL);
+		Cell cell = layout.cell(cx, cz, floor);
+		boolean spawnHere = cell.type() == RoomType.SPAWN;
+		for (Dir side : new Dir[] {Dir.WEST, Dir.NORTH}) {
+			if (cell.isOpen(side) && !roomOwnsConnector(cell, side)) {
+				boolean safe = spawnHere || LayoutService.isSpawnCell(cx + side.dx, cz + side.dz, floor);
+				Block wall = safe ? Block.SAFE_WALL : Block.WALL;
+				if (side == Dir.WEST) {
+					Connectors.west(writer, cell.door(side), wall, cell.lane(side));
+				} else {
+					Connectors.north(writer, cell.door(side), wall, cell.lane(side));
+				}
+			}
 		}
-		if (Dir.has(open, Dir.NORTH)) {
-			boolean safe = spawnHere || LayoutService.isSpawnCell(cx, cz - 1, floor);
-			Connectors.north(writer, layout.doorType(cx, cz, floor, Dir.NORTH), safe ? Block.SAFE_WALL : Block.WALL);
-		}
-		RoomType type = layout.roomAt(cx, cz, floor);
-		RoomBuilder builder = builder(type);
+		RoomBuilder builder = builder(cell.type());
 		if (builder != null) {
-			builder.build(writer, open, layout.roomHash(cx, cz, floor, type));
+			builder.build(writer, cell);
 		}
 		// Iron doors open with a stone button on the frame, one on each side.
-		if (ironDoor(layout, open, cx, cz, floor, Dir.WEST)) {
-			Connectors.westButton(writer);
+		for (Dir side : Dir.values()) {
+			if (!cell.isOpen(side) || cell.door(side) != DoorType.IRON_DOOR || roomOwnsConnector(cell, side)) {
+				continue;
+			}
+			int lane = cell.lane(side);
+			switch (side) {
+				case WEST -> Connectors.westButton(writer, lane);
+				case NORTH -> Connectors.northButton(writer, lane);
+				case EAST -> Connectors.eastButton(writer, lane);
+				case SOUTH -> Connectors.southButton(writer, lane);
+			}
 		}
-		if (ironDoor(layout, open, cx, cz, floor, Dir.NORTH)) {
-			Connectors.northButton(writer);
-		}
-		if (ironDoor(layout, open, cx, cz, floor, Dir.EAST)) {
-			Connectors.eastButton(writer);
-		}
-		if (ironDoor(layout, open, cx, cz, floor, Dir.SOUTH)) {
-			Connectors.southButton(writer);
-		}
-	}
-
-	private static boolean ironDoor(LayoutService layout, int open, int cx, int cz, int floor, Dir side) {
-		return Dir.has(open, side) && layout.doorType(cx, cz, floor, side) == DoorType.IRON_DOOR;
 	}
 }

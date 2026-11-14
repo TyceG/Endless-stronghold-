@@ -2,6 +2,7 @@ package dev.tyceg.endlessstronghold.world;
 
 import dev.tyceg.endlessstronghold.rooms.Block;
 import dev.tyceg.endlessstronghold.rooms.CellWriter;
+import dev.tyceg.endlessstronghold.rooms.Geometry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -42,7 +43,7 @@ public final class ChunkCellWriter implements CellWriter {
 
 	@Override
 	public void set(int x, int y, int z, Block block) {
-		if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y > 15) {
+		if (x < 0 || x > 15 || z < 0 || z > 15 || y < Geometry.MIN_Y || y > Geometry.MAX_Y) {
 			throw new IllegalArgumentException("Cell write outside the cell: " + x + ", " + y + ", " + z);
 		}
 		if (block.kind() == Block.Kind.CHEST) {

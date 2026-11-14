@@ -35,18 +35,7 @@ Changes of plan from [DESIGN.md](DESIGN.md), newest last.
 
 ## Phase 2
 
-**Vanilla's room weights, not the doc's.** Tyce asked for everything to generate as close to vanilla as possible, so room weights come from vanilla's `StrongholdPieces` piece weights. Plain hall 80 (vanilla Straight 40 + Left turn 20 + Right turn 20), Library 10, Chest hall 5, Prison hall 5, Grand crossing 5 (vanilla Five-way crossing), and vanilla's Room crossing (10) split by its own type roll: Pillar room 2, Fountain room 2, Storeroom 2, and **Plain room 4**. The plain, empty room is vanilla's room crossing types 3 and 4; the doc's catalog didn't list it. Vanilla's per-stronghold limits (such as at most 2 libraries) can't apply to an endless stronghold and are left out.
-
-**Rooms are vanilla's pieces, block for block where they fit.** Coordinates are offset to centre each piece on block (8, 8). Changes where vanilla's piece doesn't fit a cell:
-
-| Room | Change from vanilla |
-|---|---|
-| Spawn room | Now vanilla's pillar room (room crossing type 0) with 8 extra wall torches, instead of Phase 1's own design. Spawn point unchanged: (8, 17, 5). |
-| Library | 13 × 13 instead of 14 × 15, so every doorway gets a hall in front of it. Two pairs of free-standing shelves instead of three, leaving 3-wide aisles down the middle and across, so a doorway on any side reaches the room. Tall or short is a 50/50 roll (vanilla picks tall when it has room). |
-| Prison hall | Vanilla's piece has 2 cells on one side; it's mirrored to give 4, as the doc asks. |
-| Grand crossing | Vanilla's five-way crossing has exits at three heights. Every doorway here is at floor level, and the raised walkway (double smooth stone slabs on stone brick pillars, with a ladder up) passes over them. |
-| Stairs | Vanilla's stair pieces drop only 6 blocks; floors are 16 apart. New: a spiral of stone brick stairs around a pillar, one block up per step, with the top cell's floor open over the last 3 steps (2 isn't enough headroom: the walking test caught it). |
-| Halls | Torches like vanilla's Straight piece: a 1 in 10 chance at each of 2 spots per wall stretch. |
+**Vanilla's room weights, not the doc's.** Tyce asked for everything to generate as close to vanilla as possible, so room weights come from vanilla's `StrongholdPieces` piece weights. Plain hall 80 (vanilla Straight 40 + Left turn 20 + Right turn 20), Library 10, Chest corridor 5, Prison hall 5, Five-way crossing 5, and vanilla's Room crossing (10) split by its own type roll: Pillar room 2, Fountain room 2, Storeroom 2, and **Plain room 4**. The plain, empty room is vanilla's room crossing types 3 and 4; the doc's catalog didn't list it. Vanilla's per-stronghold limits (such as at most 2 libraries) can't apply to an endless stronghold and are left out.
 
 **Region mazes use randomised Kruskal.** Each floor of each region is a uniform random spanning tree, which gives vanilla-like branching with dead ends. Region-boundary doors, stairs and loops follow the doc.
 
@@ -63,3 +52,30 @@ Changes of plan from [DESIGN.md](DESIGN.md), newest last.
 **Region size and loop chance aren't settings yet.** They're constants (8 and 0.15) until Phase 4, because the region size has to match the portal structure's spacing.
 
 **Extra tests.** Besides the doc's unit tests, a walking test builds 16 × 16 chunks on all 4 floors and walks them as a player would: stepping up stairs and slabs with headroom, climbing ladders, through doors. It checks that every cell the maze connects can be reached on foot from spawn.
+
+## Phase 2, second pass (after the first playtest)
+
+Tyce's playtest: the library sometimes had two doorways, and the library, prison hall, staircases and "grand crossing" weren't vanilla's. Every room must be exactly the real thing. So rooms are now vanilla's `StrongholdPieces`, block for block, and the layout changed to make room for them.
+
+**Rooms are placed with vanilla's own transform.** `rooms.Piece` copies `StructurePiece`'s orientation exactly: NORTH flips z, SOUTH mirrors block states north-south, EAST and WEST swap x and z, and states are mirrored then rotated like vanilla's `placeBlock`. Vanilla writes its piece code for this transform (a pillar room's north torch is written facing south, and comes out right once transformed), so the piece code is copied line for line. The first pass had turned two pillar-room torches the wrong way; this fixes them.
+
+**Floors are 12 blocks apart, not 16.** Vanilla's stair pieces each go down exactly 6 blocks, so two of them join floors 12 apart. Floors are now at Y 0, 12, 24 and 36; the spawn point is (8, 13, 5).
+
+**Staircases are two of vanilla's spiral StairsDown pieces.** The upper one comes down from the upper floor to a corridor halfway between the floors; that corridor leads around the cell to the lower one, which comes down to the lower floor. Staircases only go in cells where the upper floor has a closed side for the upper piece and the lower floor has a different closed side for the lower one (`layout.StairPlan`). Vanilla also has a straight staircase (StraightStairsDown, 8 long); it doesn't fit this 5 x 5 block grid and isn't used.
+
+| Room | How it fits |
+|---|---|
+| Library | Vanilla's 14 x 15, 6 or 11 high, with one door, like vanilla. Only in dead-end cells. It's as big as the cell, so it uses the closed connector strip on one side; entered from the north or west its front wall is the cell's own connector. Its door is off-centre (vanilla's is 4 blocks from one side), so the hall leading to it bends to meet the door, and the edge's doorway sits where the door is. Tall or short is still a 50/50 roll. |
+| Prison hall | Vanilla's piece exactly: 2 cells on one side. The first pass's mirrored 4-cell version is gone. Straight cells only, with short corridors at each end. |
+| Chest corridor | Vanilla's piece exactly, in place of the first pass's hall with a niche. Straight cells only. |
+| Room crossings | Vanilla's piece exactly. Vanilla always cuts openings on all four sides; here only on open sides, since a closed side would open onto the void. |
+| Five-way crossing | Replaces the "grand crossing", which wasn't vanilla. Vanilla's piece exactly, sunk 2 blocks so its front door and low side exits are at the floor. The high side exits are rolled like vanilla's and open into short closed corridors. **One difference:** vanilla always cuts a far exit, 2 blocks lower; here it would open onto the next chunk, so it stays walled, and the slab steps down to it lead to a wall. Only in cells entered from the south with the north closed, or from the east with the west closed (its back sits on the cell's own connector), and never over a tall library (it sinks into the floor below). |
+| Spawn room | Vanilla's pillar room exactly, plus 8 wall torches and no infested bricks. |
+
+**Chests turn like vanilla's**: they're placed with vanilla's `StructurePiece.reorient`, facing away from a single solid neighbour.
+
+**Each piece has its own front door**, a random small door like vanilla's `entryDoor`. Some rooms have a door in their own wall a few blocks behind the connector's door, as vanilla pieces do.
+
+**Iron doors in front of a library entered from the south or east become oak doors.** Their far button would have to sit in the library's wall.
+
+**Halls bent toward a library have no wall torches**, because the bend cuts through the walls they'd hang on.

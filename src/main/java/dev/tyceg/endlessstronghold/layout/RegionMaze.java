@@ -14,7 +14,6 @@ public final class RegionMaze {
 	public static final int STAIRS_PER_FLOOR_PAIR = 2;
 
 	private static final long TREE_SALT = Hash.salt("tree");
-	private static final long STAIR_SALT = Hash.salt("stairs");
 	/** Edge ids: 0..55 are east edges (x 0..6, z 0..7), 56..111 are south edges (x 0..7, z 0..6). */
 	private static final int EAST_EDGES = (SIZE - 1) * SIZE;
 	private static final int EDGES = EAST_EDGES * 2;
@@ -24,7 +23,7 @@ public final class RegionMaze {
 	/** Per floor, per cell: bit 0 = tree edge to the east, bit 1 = tree edge to the south. */
 	private final byte[][] tree;
 	/** Per floor, per cell: true if the cell holds the bottom of a staircase up to the next floor. */
-	private final boolean[][] stairUp;
+	final boolean[][] stairUp;
 
 	private RegionMaze(int rx, int rz, int floors) {
 		this.rx = rx;
@@ -37,12 +36,12 @@ public final class RegionMaze {
 		return lx + lz * SIZE;
 	}
 
-	public static RegionMaze build(long seed, int rx, int rz, int floors) {
+	/** The trees only; {@link LayoutService} places the stairs, since that needs the final open sides. */
+	static RegionMaze buildTrees(long seed, int rx, int rz, int floors) {
 		RegionMaze maze = new RegionMaze(rx, rz, floors);
 		for (int f = 0; f < floors; f++) {
 			maze.buildTree(seed, f);
 		}
-		maze.placeStairs(seed, floors);
 		return maze;
 	}
 
@@ -95,43 +94,6 @@ public final class RegionMaze {
 			i = parent[i];
 		}
 		return i;
-	}
-
-	private void placeStairs(long seed, int floors) {
-		for (int f = 0; f + 1 < floors; f++) {
-			long best1 = Long.MAX_VALUE;
-			long best2 = Long.MAX_VALUE;
-			int pick1 = -1;
-			int pick2 = -1;
-			for (int i = 0; i < CELLS; i++) {
-				if (excluded(i, f)) {
-					continue;
-				}
-				long key = Hash.of(seed, STAIR_SALT, rx, rz, f, i);
-				if (Long.compareUnsigned(key, best1) < 0) {
-					best2 = best1;
-					pick2 = pick1;
-					best1 = key;
-					pick1 = i;
-				} else if (Long.compareUnsigned(key, best2) < 0) {
-					best2 = key;
-					pick2 = i;
-				}
-			}
-			stairUp[f][pick1] = true;
-			stairUp[f][pick2] = true;
-		}
-	}
-
-	/** Cells that can't hold the bottom of a staircase from floor f. */
-	private boolean excluded(int i, int f) {
-		int cx = rx * SIZE + i % SIZE;
-		int cz = rz * SIZE + i / SIZE;
-		if (cx == LayoutService.SPAWN_CX && cz == LayoutService.SPAWN_CZ) {
-			return true;
-		}
-		// Already the top of the staircase from the floor below.
-		return f > 0 && stairUp[f - 1][i];
 	}
 
 	public boolean treeEast(int floor, int lx, int lz) {

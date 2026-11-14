@@ -17,6 +17,14 @@ public final class Rng {
 		return Hash.mix(state);
 	}
 
+	public float nextFloat() {
+		return (nextLong() >>> 40) * 0x1.0p-24f;
+	}
+
+	public boolean nextBoolean() {
+		return (nextLong() & 1) == 0;
+	}
+
 	public boolean chance(double probability) {
 		return Hash.unit(nextLong()) < probability;
 	}

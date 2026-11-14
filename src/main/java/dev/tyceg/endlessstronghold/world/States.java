@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.WallTorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.SlabType;
@@ -88,7 +89,9 @@ final class States {
 	}
 
 	private static BlockState door(BlockState door, Direction facing, int data) {
-		return door.setValue(DoorBlock.FACING, facing).setValue(DoorBlock.HALF, data == 1 ? DoubleBlockHalf.UPPER : DoubleBlockHalf.LOWER);
+		return door.setValue(DoorBlock.FACING, facing)
+			.setValue(DoorBlock.HALF, (data & 1) != 0 ? DoubleBlockHalf.UPPER : DoubleBlockHalf.LOWER)
+			.setValue(DoorBlock.HINGE, (data & 2) != 0 ? DoorHingeSide.RIGHT : DoorHingeSide.LEFT);
 	}
 
 	static Direction direction(Dir dir) {

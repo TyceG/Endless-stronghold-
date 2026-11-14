@@ -1,11 +1,15 @@
 package dev.tyceg.endlessstronghold.rooms;
 
+import dev.tyceg.endlessstronghold.layout.Cell;
 import dev.tyceg.endlessstronghold.layout.Dir;
+import dev.tyceg.endlessstronghold.layout.DoorType;
+import dev.tyceg.endlessstronghold.layout.Rng;
 
 /**
- * Vanilla's room crossing: an 11 x 11 room, 7 high, with doorways on every
- * open side and one of four interiors. Coordinates are vanilla's plus 3, which
- * centres the room on block (8, 8).
+ * Vanilla's RoomCrossing, block for block: an 11 x 11 room, 7 high, with one
+ * of its interiors. Vanilla always cuts openings on all three far sides; here
+ * an opening is cut only where the cell's side is open, since a closed side
+ * would open onto the void.
  */
 public final class CrossingRoom implements RoomBuilder {
 	public enum Variant {
@@ -25,9 +29,6 @@ public final class CrossingRoom implements RoomBuilder {
 	public static final CrossingRoom PLAIN = new CrossingRoom(Variant.PLAIN);
 
 	static final int LO = 3;
-	static final int HI = 13;
-	static final int TOP = 6;
-	private static final int OFF = 3;
 
 	private final Variant variant;
 
@@ -36,84 +37,108 @@ public final class CrossingRoom implements RoomBuilder {
 	}
 
 	@Override
-	public void build(CellWriter w, int openSides, long hash) {
-		Kit.room(w, Block.WALL, openSides, LO, HI, TOP);
+	public void build(CellWriter w, Cell cell) {
+		Piece p = place(w, cell, Block.WALL, Rooms.entryDoor(cell));
 		switch (variant) {
-			case PILLAR -> pillar(w);
-			case FOUNTAIN -> fountain(w);
-			case STOREROOM -> storeroom(w);
+			case PILLAR -> pillar(p);
+			case FOUNTAIN -> fountain(p);
+			case STOREROOM -> storeroom(p);
 			case PLAIN -> {
 			}
 		}
 	}
 
-	private static void set(CellWriter w, int x, int y, int z, Block b) {
-		w.set(x + OFF, y, z + OFF, b);
+	/** The room's walls and openings, with short corridors out to each open side. */
+	static Piece place(CellWriter w, Cell cell, Block wall, DoorType entryDoor) {
+		Kit.stubs(w, wall, cell.open(), LO);
+		Dir orientation = Piece.orientationFor(cell.entry());
+		Piece p = Piece.at(w, orientation, LO, 0, LO, 11, 11, wall, new Rng(cell.hash()));
+		p.selector(0, 0, 0, 10, 6, 10);
+		p.smallDoor(entryDoor, 4, 1, 0, true);
+		Dir left = Piece.lowXSide(orientation);
+		if (cell.isOpen(orientation)) {
+			p.fill(4, 1, 10, 6, 3, 10, Block.AIR);
+		}
+		if (cell.isOpen(left)) {
+			p.fill(0, 1, 4, 0, 3, 6, Block.AIR);
+		}
+		if (cell.isOpen(left.opposite())) {
+			p.fill(10, 1, 4, 10, 3, 6, Block.AIR);
+		}
+		return p;
 	}
 
-	static void pillar(CellWriter w) {
-		for (int y = 1; y <= 3; y++) {
-			set(w, 5, y, 5, Block.STONE_BRICKS);
-		}
-		set(w, 4, 3, 5, Block.wallTorch(Dir.WEST));
-		set(w, 6, 3, 5, Block.wallTorch(Dir.EAST));
-		set(w, 5, 3, 4, Block.wallTorch(Dir.NORTH));
-		set(w, 5, 3, 6, Block.wallTorch(Dir.SOUTH));
-		for (int[] p : new int[][] {{4, 4}, {4, 5}, {4, 6}, {6, 4}, {6, 5}, {6, 6}, {5, 4}, {5, 6}}) {
-			set(w, p[0], 1, p[1], Block.SMOOTH_STONE_SLAB);
-		}
+	static void pillar(Piece p) {
+		p.place(Block.STONE_BRICKS, 5, 1, 5);
+		p.place(Block.STONE_BRICKS, 5, 2, 5);
+		p.place(Block.STONE_BRICKS, 5, 3, 5);
+		p.place(Block.wallTorch(Dir.WEST), 4, 3, 5);
+		p.place(Block.wallTorch(Dir.EAST), 6, 3, 5);
+		p.place(Block.wallTorch(Dir.SOUTH), 5, 3, 4);
+		p.place(Block.wallTorch(Dir.NORTH), 5, 3, 6);
+		p.place(Block.SMOOTH_STONE_SLAB, 4, 1, 4);
+		p.place(Block.SMOOTH_STONE_SLAB, 4, 1, 5);
+		p.place(Block.SMOOTH_STONE_SLAB, 4, 1, 6);
+		p.place(Block.SMOOTH_STONE_SLAB, 6, 1, 4);
+		p.place(Block.SMOOTH_STONE_SLAB, 6, 1, 5);
+		p.place(Block.SMOOTH_STONE_SLAB, 6, 1, 6);
+		p.place(Block.SMOOTH_STONE_SLAB, 5, 1, 4);
+		p.place(Block.SMOOTH_STONE_SLAB, 5, 1, 6);
 	}
 
-	private static void fountain(CellWriter w) {
+	private static void fountain(Piece p) {
 		for (int i = 0; i < 5; i++) {
-			set(w, 3, 1, 3 + i, Block.STONE_BRICKS);
-			set(w, 7, 1, 3 + i, Block.STONE_BRICKS);
-			set(w, 3 + i, 1, 3, Block.STONE_BRICKS);
-			set(w, 3 + i, 1, 7, Block.STONE_BRICKS);
+			p.place(Block.STONE_BRICKS, 3, 1, 3 + i);
+			p.place(Block.STONE_BRICKS, 7, 1, 3 + i);
+			p.place(Block.STONE_BRICKS, 3 + i, 1, 3);
+			p.place(Block.STONE_BRICKS, 3 + i, 1, 7);
 		}
-		for (int y = 1; y <= 3; y++) {
-			set(w, 5, y, 5, Block.STONE_BRICKS);
-		}
-		set(w, 5, 4, 5, Block.WATER);
+		p.place(Block.STONE_BRICKS, 5, 1, 5);
+		p.place(Block.STONE_BRICKS, 5, 2, 5);
+		p.place(Block.STONE_BRICKS, 5, 3, 5);
+		p.place(Block.WATER, 5, 4, 5);
 	}
 
-	private static void storeroom(CellWriter w) {
-		for (int i = 1; i <= 9; i++) {
-			set(w, 1, 3, i, Block.COBBLESTONE);
-			set(w, 9, 3, i, Block.COBBLESTONE);
-			set(w, i, 3, 1, Block.COBBLESTONE);
-			set(w, i, 3, 9, Block.COBBLESTONE);
+	private static void storeroom(Piece p) {
+		for (int z = 1; z <= 9; z++) {
+			p.place(Block.COBBLESTONE, 1, 3, z);
+			p.place(Block.COBBLESTONE, 9, 3, z);
 		}
-		set(w, 5, 1, 4, Block.COBBLESTONE);
-		set(w, 5, 1, 6, Block.COBBLESTONE);
-		set(w, 5, 3, 4, Block.COBBLESTONE);
-		set(w, 5, 3, 6, Block.COBBLESTONE);
-		set(w, 4, 1, 5, Block.COBBLESTONE);
-		set(w, 6, 1, 5, Block.COBBLESTONE);
-		set(w, 4, 3, 5, Block.COBBLESTONE);
-		set(w, 6, 3, 5, Block.COBBLESTONE);
+		for (int x = 1; x <= 9; x++) {
+			p.place(Block.COBBLESTONE, x, 3, 1);
+			p.place(Block.COBBLESTONE, x, 3, 9);
+		}
+		p.place(Block.COBBLESTONE, 5, 1, 4);
+		p.place(Block.COBBLESTONE, 5, 1, 6);
+		p.place(Block.COBBLESTONE, 5, 3, 4);
+		p.place(Block.COBBLESTONE, 5, 3, 6);
+		p.place(Block.COBBLESTONE, 4, 1, 5);
+		p.place(Block.COBBLESTONE, 6, 1, 5);
+		p.place(Block.COBBLESTONE, 4, 3, 5);
+		p.place(Block.COBBLESTONE, 6, 3, 5);
 		for (int y = 1; y <= 3; y++) {
-			set(w, 4, y, 4, Block.COBBLESTONE);
-			set(w, 6, y, 4, Block.COBBLESTONE);
-			set(w, 4, y, 6, Block.COBBLESTONE);
-			set(w, 6, y, 6, Block.COBBLESTONE);
+			p.place(Block.COBBLESTONE, 4, y, 4);
+			p.place(Block.COBBLESTONE, 6, y, 4);
+			p.place(Block.COBBLESTONE, 4, y, 6);
+			p.place(Block.COBBLESTONE, 6, y, 6);
 		}
-		// Vanilla's default wall torch faces north, hanging on the cobblestone to its south.
-		set(w, 5, 3, 5, Block.wallTorch(Dir.NORTH));
+		// Vanilla's default wall torch state faces north.
+		p.place(Block.wallTorch(Dir.NORTH), 5, 3, 5);
 		for (int z = 2; z <= 8; z++) {
-			set(w, 2, 3, z, Block.OAK_PLANKS);
-			set(w, 3, 3, z, Block.OAK_PLANKS);
+			p.place(Block.OAK_PLANKS, 2, 3, z);
+			p.place(Block.OAK_PLANKS, 3, 3, z);
 			if (z <= 3 || z >= 7) {
-				set(w, 4, 3, z, Block.OAK_PLANKS);
-				set(w, 5, 3, z, Block.OAK_PLANKS);
-				set(w, 6, 3, z, Block.OAK_PLANKS);
+				p.place(Block.OAK_PLANKS, 4, 3, z);
+				p.place(Block.OAK_PLANKS, 5, 3, z);
+				p.place(Block.OAK_PLANKS, 6, 3, z);
 			}
-			set(w, 7, 3, z, Block.OAK_PLANKS);
-			set(w, 8, 3, z, Block.OAK_PLANKS);
+			p.place(Block.OAK_PLANKS, 7, 3, z);
+			p.place(Block.OAK_PLANKS, 8, 3, z);
 		}
-		for (int y = 1; y <= 3; y++) {
-			set(w, 9, y, 3, Block.ladder(Dir.WEST));
-		}
-		set(w, 3, 4, 8, Block.chest(Dir.NORTH, Block.Loot.CROSSING));
+		Block ladder = Block.ladder(Dir.WEST);
+		p.place(ladder, 9, 1, 3);
+		p.place(ladder, 9, 2, 3);
+		p.place(ladder, 9, 3, 3);
+		p.place(Block.chest(null, Block.Loot.CROSSING), 3, 4, 8);
 	}
 }

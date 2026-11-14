@@ -1,10 +1,13 @@
 package dev.tyceg.endlessstronghold.rooms;
 
+import dev.tyceg.endlessstronghold.layout.Cell;
 import dev.tyceg.endlessstronghold.layout.Dir;
+import dev.tyceg.endlessstronghold.layout.DoorType;
 
 /**
- * The spawn room: vanilla's pillar room (room crossing type 0), with extra
- * wall torches so no monster can spawn in it, and no infested bricks.
+ * The spawn room: vanilla's pillar room (RoomCrossing type 0) block for block,
+ * open on all four sides, with no infested bricks and 8 extra wall torches so
+ * no monster can spawn in it.
  */
 public final class SpawnRoom implements RoomBuilder {
 	public static final SpawnRoom INSTANCE = new SpawnRoom();
@@ -18,9 +21,9 @@ public final class SpawnRoom implements RoomBuilder {
 	}
 
 	@Override
-	public void build(CellWriter w, int openSides, long hash) {
-		Kit.room(w, Block.SAFE_WALL, openSides, CrossingRoom.LO, CrossingRoom.HI, CrossingRoom.TOP);
-		CrossingRoom.pillar(w);
+	public void build(CellWriter w, Cell cell) {
+		Piece p = CrossingRoom.place(w, cell, Block.SAFE_WALL, DoorType.OPENING);
+		CrossingRoom.pillar(p);
 		for (int turn = 0; turn < 4; turn++) {
 			CellWriter r = w.rotated(turn);
 			r.set(5, 3, CrossingRoom.LO + 1, Block.wallTorch(Dir.SOUTH));

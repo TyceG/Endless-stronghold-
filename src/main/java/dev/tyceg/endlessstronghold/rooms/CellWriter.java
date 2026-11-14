@@ -1,8 +1,9 @@
 package dev.tyceg.endlessstronghold.rooms;
 
 /**
- * Writes blocks into one cell in local coordinates: x and z from 0 to 15, y
- * from 0 to 15 above the floor. Implementations convert to world coordinates.
+ * Writes blocks into one chunk column in coordinates local to a cell: x and z
+ * from 0 to 15, y measured from the cell's floor (see {@link Geometry#MIN_Y}
+ * and {@link Geometry#MAX_Y}). Implementations convert to world coordinates.
  */
 public interface CellWriter {
 	void set(int x, int y, int z, Block block);

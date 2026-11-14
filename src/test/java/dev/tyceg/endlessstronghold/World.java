@@ -3,6 +3,7 @@ package dev.tyceg.endlessstronghold;
 import dev.tyceg.endlessstronghold.layout.LayoutService;
 import dev.tyceg.endlessstronghold.rooms.Block;
 import dev.tyceg.endlessstronghold.rooms.CellWriter;
+import dev.tyceg.endlessstronghold.rooms.Geometry;
 import dev.tyceg.endlessstronghold.rooms.Rooms;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,9 +12,12 @@ import java.util.Map;
 
 /**
  * A test stand-in for the world: a square of chunks, every floor, built one
- * cell at a time exactly as the generator does. Unwritten blocks are null: the void.
+ * cell at a time exactly as the generator does (floors bottom to top in each
+ * chunk). Unwritten blocks are null: the void. Grid y 0 is world y -2.
  */
 final class World {
+	static final int OFFSET = -Geometry.MIN_Y;
+
 	final LayoutService layout;
 	final int minCx;
 	final int minCz;
@@ -28,7 +32,7 @@ final class World {
 		this.minCx = minCx;
 		this.minCz = minCz;
 		this.size = size;
-		this.height = layout.floors() * LayoutService.FLOOR_HEIGHT;
+		this.height = OFFSET + layout.floorY(layout.floors() - 1) + Geometry.MAX_Y + 2;
 		this.cells = new byte[size * 16 * height * size * 16];
 		palette.add(null);
 	}
@@ -45,12 +49,17 @@ final class World {
 		return world;
 	}
 
-	/** A writer for one cell that rejects writes outside the cell and its floor band. */
+	/** Grid y of a floor's floor blocks. */
+	int floorGridY(int floor) {
+		return OFFSET + layout.floorY(floor);
+	}
+
+	/** A writer for one cell that rejects writes outside the chunk or the cell's height range. */
 	CellWriter cell(int i, int j, int floor) {
-		int baseY = floor * LayoutService.FLOOR_HEIGHT;
+		int baseY = floorGridY(floor);
 		return (x, y, z, block) -> {
-			if (x < 0 || x > 15 || y < 0 || y > 15 || z < 0 || z > 15) {
-				throw new AssertionError("Write outside the cell: " + x + ", " + y + ", " + z);
+			if (x < 0 || x > 15 || y < Geometry.MIN_Y || y > Geometry.MAX_Y || z < 0 || z > 15) {
+				throw new AssertionError("Write outside the cell: " + x + ", " + y + ", " + z + " in " + layout.roomAt(minCx + i, minCz + j, floor));
 			}
 			put(i * 16 + x, baseY + y, j * 16 + z, block);
 		};
@@ -85,8 +94,10 @@ final class World {
 	String where(int gx, int gy, int gz) {
 		int cx = minCx + Math.floorDiv(gx, 16);
 		int cz = minCz + Math.floorDiv(gz, 16);
-		int floor = Math.floorDiv(gy, LayoutService.FLOOR_HEIGHT);
-		return "chunk " + cx + ", " + cz + " floor " + floor + " (" + layout.roomAt(cx, cz, floor) + ") local "
-			+ Math.floorMod(gx, 16) + ", " + Math.floorMod(gy, 16) + ", " + Math.floorMod(gz, 16);
+		int floor = Math.floorDiv(gy - OFFSET, LayoutService.FLOOR_HEIGHT);
+		String room = floor >= 0 && floor < layout.floors() ? String.valueOf(layout.roomAt(cx, cz, floor)) : "-";
+		return "chunk " + cx + ", " + cz + " floor " + floor + " (" + room + ") local "
+			+ Math.floorMod(gx, 16) + ", y " + (gy - OFFSET - layout.floorY(Math.max(0, floor))) + ", " + Math.floorMod(gz, 16)
+			+ " [world " + (cx * 16 + Math.floorMod(gx, 16)) + ", " + (gy - OFFSET) + ", " + (cz * 16 + Math.floorMod(gz, 16)) + "]";
 	}
 }

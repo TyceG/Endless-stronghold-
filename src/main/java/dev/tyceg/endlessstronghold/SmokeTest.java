@@ -49,9 +49,9 @@ final class SmokeTest {
 		List<String> failures = new ArrayList<>();
 		ServerLevel level = server.overworld();
 		BlockPos spawn = server.getRespawnData().pos();
-		// The same spot in a hall far away, in a chunk nothing has loaded yet: what a
+		// The middle of a cell far away, in a chunk nothing has loaded yet: what a
 		// player meets when they join a new world before its spawn area has loaded.
-		BlockPos far = spawn.offset(FAR_CHUNKS * 16, 0, 0);
+		BlockPos far = new BlockPos(FAR_CHUNKS * 16 + 8, spawn.getY(), 8);
 		try {
 			check(server, failures);
 		} catch (Throwable t) {
@@ -61,7 +61,7 @@ final class SmokeTest {
 		if (level.getChunkSource().hasChunk(far.getX() >> 4, far.getZ() >> 4)) {
 			failures.add("test setup: the far chunk was already loaded, so the unloaded-chunk spawn check proves nothing");
 		}
-		expectSpawn(level, far, "in a chunk that wasn't loaded yet", failures)
+		expectNotInVoid(level, far, failures)
 			.thenCompose(ignored -> expectSpawn(level, spawn, "at the world spawn", failures))
 			.whenCompleteAsync((ignored, error) -> {
 				if (error != null) {
@@ -78,6 +78,17 @@ final class SmokeTest {
 				EndlessStronghold.LOGGER.info("[smoke] {}: a player appears at {}, as expected", where, suggestion.toShortString());
 			} else {
 				failures.add(where + ": a player would appear at " + found + " instead of " + suggestion.toShortString());
+			}
+		});
+	}
+
+	/** In a chunk that wasn't loaded, the spawn finder must still find the stronghold's floor, not drop to the bottom of the world. */
+	private static CompletableFuture<Void> expectNotInVoid(ServerLevel level, BlockPos suggestion, List<String> failures) {
+		return PlayerSpawnFinder.findSpawn(level, suggestion).thenAccept(found -> {
+			if (found.y < 0) {
+				failures.add("in a chunk that wasn't loaded yet: a player would fall into the void, at " + found);
+			} else {
+				EndlessStronghold.LOGGER.info("[smoke] in a chunk that wasn't loaded yet: a player lands at {}, in the stronghold", BlockPos.containing(found).toShortString());
 			}
 		});
 	}
@@ -119,7 +130,7 @@ final class SmokeTest {
 					for (Dir side : new Dir[] {Dir.WEST, Dir.NORTH}) {
 						if (layout.isOpen(cx, cz, floor, side)) {
 							doorways++;
-							checkConnector(level, chunk, layout.floorY(floor), side, failures);
+							checkConnector(level, chunk, layout.floorY(floor), side, layout.lane(cx, cz, floor, side) + 1, failures);
 						}
 					}
 				}
@@ -179,10 +190,10 @@ final class SmokeTest {
 	 * the blocks either side of it in both chunks: a floor below, and two blocks
 	 * a player can walk through (air, or a door) above.
 	 */
-	private static void checkConnector(ServerLevel level, LevelChunk chunk, int floorY, Dir side, List<String> failures) {
+	private static void checkConnector(ServerLevel level, LevelChunk chunk, int floorY, Dir side, int middle, List<String> failures) {
 		int minX = chunk.getPos().getMinBlockX();
 		int minZ = chunk.getPos().getMinBlockZ();
-		BlockPos base = side == Dir.WEST ? new BlockPos(minX, floorY, minZ + 8) : new BlockPos(minX + 8, floorY, minZ);
+		BlockPos base = side == Dir.WEST ? new BlockPos(minX, floorY, minZ + middle) : new BlockPos(minX + middle, floorY, minZ);
 		for (int step = -1; step <= 1; step++) {
 			BlockPos p = side == Dir.WEST ? base.offset(step, 0, 0) : base.offset(0, 0, step);
 			if (!solid(level, p) || !walkable(level, p.above(1)) || !walkable(level, p.above(2))) {

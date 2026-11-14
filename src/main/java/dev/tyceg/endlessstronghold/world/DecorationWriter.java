@@ -9,6 +9,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.StructurePiece;
 import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.storage.loot.LootTable;
 
@@ -52,7 +55,11 @@ public final class DecorationWriter implements CellWriter {
 		int worldY = floorY + y;
 		int worldZ = minZ + z;
 		pos.set(worldX, worldY, worldZ);
-		level.setBlock(pos, States.of(block, worldX, worldY, worldZ, seed), 2);
+		BlockState state = block.facing() == null
+			// Vanilla's structure chests turn away from a single solid neighbour.
+			? StructurePiece.reorient(level, pos, Blocks.CHEST.defaultBlockState())
+			: States.of(block, worldX, worldY, worldZ, seed);
+		level.setBlock(pos, state, 2);
 		if (level.getBlockEntity(pos) instanceof RandomizableContainerBlockEntity chest) {
 			chest.setLootTable(lootTable(block.loot()), Hash.of(seed, CHEST_SALT, worldX, worldY, worldZ));
 		}

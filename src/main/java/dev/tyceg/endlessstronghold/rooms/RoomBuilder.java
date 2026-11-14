@@ -1,9 +1,8 @@
 package dev.tyceg.endlessstronghold.rooms;
 
-/**
- * Writes one room into the room area (x, z = 1..15) of a cell. It may open
- * doorways only on the sides set in {@code openSides}.
- */
+import dev.tyceg.endlessstronghold.layout.Cell;
+
+/** Writes one room into a cell, given everything the layout decided about it. */
 public interface RoomBuilder {
-	void build(CellWriter writer, int openSides, long hash);
+	void build(CellWriter writer, Cell cell);
 }

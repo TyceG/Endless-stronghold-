@@ -110,8 +110,25 @@ public record Block(Kind kind, Dir facing, int data) {
 		return new Block(Kind.IRON_DOOR, facing, upper ? 1 : 0);
 	}
 
+	/**
+	 * A chest. With a null facing it turns the way vanilla's structure chests
+	 * do, away from a single solid neighbour, worked out where it's placed.
+	 */
 	public static Block chest(Dir facing, Loot loot) {
 		return new Block(Kind.CHEST, facing, loot.ordinal());
+	}
+
+	public boolean isDoor() {
+		return kind == Kind.OAK_DOOR || kind == Kind.IRON_DOOR;
+	}
+
+	public boolean upperHalf() {
+		return isDoor() && (data & 1) != 0;
+	}
+
+	/** Doors: bit 1 of data is the hinge, flipped when a piece is mirrored. */
+	public boolean hingeRight() {
+		return isDoor() && (data & 2) != 0;
 	}
 
 	public Shape shape() {
