@@ -105,3 +105,7 @@ Tyce asked how vanilla makes all five of the five-way crossing's doorways work, 
 **Each chunk builds the pieces of its region that reach into it**, clipped to the chunk, as vanilla builds a structure's pieces chunk by chunk. Regions line up with chunks, so a chunk belongs to exactly one. Each piece draws its own randomness (block mix, torches, cobwebs, portal eyes) from its own seed, so a piece crossing chunk borders comes out the same in each.
 
 **Tests.** A walk from spawn across two whole regions reaches every main corridor piece, the next region's hub, and 98 to 99% of all pieces (the rest sit behind vanilla's misplaced five-way children). No air touches the void. Every region keeps vanilla's limits and has one portal room, and every pair of neighbouring regions' main corridors meet.
+
+## DESIGN.md revised
+
+After Phase 2, `DESIGN.md` was rewritten to describe the stronghold as it is now built (vanilla growth, regions, main corridors) instead of the original floors and maze, and its Phase 3 plan for eyes of ender changed: the generator answers `findNearestMapStructure` itself from the region plans, instead of a `random_spread` structure set, which could not match where the growth puts each portal room. The original version is in git history.
