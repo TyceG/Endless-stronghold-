@@ -19,7 +19,7 @@ Changes of plan from [DESIGN.md](DESIGN.md), newest last.
 **Spawn uses two mixins, not a server-start event.** Vanilla picks a new world's spawn in a private `MinecraftServer.setInitialSpawn`, which searches 11 × 11 chunks for the highest block. Setting the spawn afterwards from a server-start event would also have to tell a fresh world from a reloaded one, and the bonus chest would already have landed on the roof. So:
 
 - `MinecraftServerMixin` replaces `setInitialSpawn` for Endless Stronghold worlds only: spawn goes to the spawn room and `respawn_radius` is set to 0. It runs once, when the world is created.
-- `PlayerSpawnFinderMixin`: even with `respawn_radius` 0, vanilla's `PlayerSpawnFinder.findSpawn` moves joining and respawning players to the top of the spawn column, which is the roof. For Endless Stronghold worlds it now keeps them at the world spawn, the way vanilla already does in adventure mode. Beds are unaffected.
+- `PlayerSpawnFinderMixin`: even with `respawn_radius` 0, vanilla's `PlayerSpawnFinder.findSpawn` moves joining and respawning players to the top of the spawn column, which is the roof. For Endless Stronghold worlds it now keeps them at the world spawn, the way vanilla already does in adventure mode. Beds are unaffected. It loads the spawn chunk before measuring the floor, like vanilla's own search: in the first playtest it didn't, so a player joining before the spawn area had loaded found no floor and was dropped to Y -63, into the void. The smoke test now checks a spawn point in an unloaded chunk.
 
 **No bonus chest.** The Bonus Chest world option does nothing in Endless Stronghold worlds, because the spawn room replaces vanilla's spawn setup.
 

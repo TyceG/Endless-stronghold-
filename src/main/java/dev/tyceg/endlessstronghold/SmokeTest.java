@@ -23,6 +23,8 @@ import net.minecraft.world.phys.Vec3;
 final class SmokeTest {
 	static final String PROPERTY = "endless_stronghold.smoke";
 	private static final int RADIUS_CHUNKS = 16;
+	/** Well outside RADIUS_CHUNKS and the spawn area, so that chunk is unloaded when the test starts. */
+	private static final int FAR_CHUNKS = 40;
 
 	private SmokeTest() {
 	}
@@ -36,12 +38,42 @@ final class SmokeTest {
 
 	private static void run(MinecraftServer server) {
 		List<String> failures = new ArrayList<>();
+		ServerLevel level = server.overworld();
+		BlockPos spawn = server.getRespawnData().pos();
+		// The same spot in a hall far away, in a chunk nothing has loaded yet: what a
+		// player meets when they join a new world before its spawn area has loaded.
+		BlockPos far = spawn.offset(FAR_CHUNKS * 16, 0, 0);
 		try {
 			check(server, failures);
 		} catch (Throwable t) {
 			EndlessStronghold.LOGGER.error("[smoke] crashed", t);
 			failures.add("crashed: " + t);
 		}
+		if (level.getChunkSource().hasChunk(far.getX() >> 4, far.getZ() >> 4)) {
+			failures.add("test setup: the far chunk was already loaded, so the unloaded-chunk spawn check proves nothing");
+		}
+		expectSpawn(level, far, "in a chunk that wasn't loaded yet", failures)
+			.thenCompose(ignored -> expectSpawn(level, spawn, "at the world spawn", failures))
+			.whenCompleteAsync((ignored, error) -> {
+				if (error != null) {
+					failures.add("spawn check crashed: " + error);
+				}
+				finish(server, failures);
+			}, server);
+	}
+
+	/** Asks vanilla's spawn finder where a player would appear for this spawn point, and checks it's that exact block. */
+	private static CompletableFuture<Void> expectSpawn(ServerLevel level, BlockPos suggestion, String where, List<String> failures) {
+		return PlayerSpawnFinder.findSpawn(level, suggestion).thenAccept(found -> {
+			if (BlockPos.containing(found).equals(suggestion)) {
+				EndlessStronghold.LOGGER.info("[smoke] {}: a player appears at {}, as expected", where, suggestion.toShortString());
+			} else {
+				failures.add(where + ": a player would appear at " + found + " instead of " + suggestion.toShortString());
+			}
+		});
+	}
+
+	private static void finish(MinecraftServer server, List<String> failures) {
 		if (failures.isEmpty()) {
 			EndlessStronghold.LOGGER.info("[smoke] PASS");
 		} else {
@@ -87,16 +119,6 @@ final class SmokeTest {
 
 		if (!solid(level, spawn.below()) || !level.getBlockState(spawn).isAir() || !level.getBlockState(spawn.above()).isAir()) {
 			failures.add("no solid floor with two air blocks above at the spawn point " + spawn.toShortString());
-		}
-
-		CompletableFuture<Vec3> joinSpawn = PlayerSpawnFinder.findSpawn(level, spawn);
-		Vec3 where = joinSpawn.getNow(null);
-		if (where == null) {
-			failures.add("player spawn search did not finish at once; is the spawn mixin applied?");
-		} else if (!BlockPos.containing(where).equals(spawn)) {
-			failures.add("a joining player would appear at " + where + ", not in the spawn room at " + spawn.toShortString());
-		} else {
-			EndlessStronghold.LOGGER.info("[smoke] spawn {} has a floor and headroom; joining players appear there", spawn.toShortString());
 		}
 	}
 
