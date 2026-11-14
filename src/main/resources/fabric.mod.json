@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "endless_stronghold",
+	"version": "${version}",
+	"name": "Endless Stronghold",
+	"description": "A world type where the Overworld is one endless stronghold floating in the void.",
+	"authors": [
+		"Tyce"
+	],
+	"contact": {
+		"sources": "https://github.com/TyceG/Endless-stronghold-"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/endless_stronghold/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.tyceg.endlessstronghold.EndlessStronghold"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"mixins": [
+		"endless_stronghold.mixins.json"
+	]
+}
