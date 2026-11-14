@@ -68,7 +68,7 @@ Since 26.1 the build uses `implementation` (not `modImplementation`) and builds 
 | Space between rooms | Void | Breaking a wall shows the void |
 | Doorways leading nowhere | Stone just beyond them | Underground, vanilla's look onto stone |
 | Mobs | Overworld monsters spawn in dark rooms; no animals | Source of ender pearls, string, bones and gunpowder |
-| Loot | Vanilla stronghold tables plus a small extra pool | Extra pool: flint for flint and steel, and a rare eye of ender |
+| Loot | Vanilla's stronghold loot tables, unchanged | As in a vanilla stronghold |
 | Spawn | The spawn region's hub: a lit pillar room at (0, 31, -3); respawn radius 0 | Players never land on the roof |
 | Settings | Generator settings live in the world preset JSON | No settings screen in version 1 |
 
@@ -81,7 +81,6 @@ One world preset gives the Overworld the mod's generator and leaves the Nether a
 | `endless_stronghold/worldgen/world_preset/endless_stronghold.json` | Overworld uses the mod's generator and one fixed biome; Nether and End are copied from vanilla's `minecraft:normal` preset | Done |
 | `minecraft/tags/worldgen/world_preset/normal.json` | Adds the preset to the World Type list, with `"replace": false` | Done |
 | `endless_stronghold/worldgen/biome/stronghold_void.json` | The only Overworld biome: no features, no carvers, the monster spawns from `minecraft:plains` | Done |
-| `endless_stronghold/loot_table/chests/*.json` | Chest tables: vanilla's stronghold loot, plus the extra pool | Vanilla's done; extra pool in Phase 3 |
 | `endless_stronghold/worldgen/structure/portal_room.json` | A marker structure, so eyes of ender and `/locate` have something to look for (see Portal rooms) | Phase 3 |
 | `minecraft/tags/worldgen/structure/eye_of_ender_located.json` | Adds the marker structure, with `"replace": false` | Phase 3 |
 
@@ -159,14 +158,14 @@ Blocks:
 
 Loot:
 
-| Chests in | Loot table | Rolls |
-|---|---|---|
-| Chest corridors | `endless_stronghold:chests/corridor` | `minecraft:chests/stronghold_corridor` plus the extra pool |
-| Storerooms | `endless_stronghold:chests/crossing` | `minecraft:chests/stronghold_crossing` plus the extra pool |
-| Libraries | `endless_stronghold:chests/library` | `minecraft:chests/stronghold_library` plus the extra pool |
+Chests use vanilla's own stronghold loot tables, unchanged:
 
-- Each mod table has 2 pools: one `minecraft:loot_table` entry pointing at the vanilla table, and the extra pool.
-- Extra pool (Phase 3): a 25% chance of 1 to 3 flint, and a 5% chance of 1 eye of ender.
+| Chests in | Loot table |
+|---|---|
+| Chest corridors | `minecraft:chests/stronghold_corridor` |
+| Storerooms | `minecraft:chests/stronghold_crossing` |
+| Libraries | `minecraft:chests/stronghold_library` |
+
 - Chests are placed in the decoration stage, turned the way vanilla's structure chests are, and store their loot table and a seed. Items roll the first time a player opens them, as in vanilla.
 
 Mobs:
@@ -261,7 +260,6 @@ GitHub Actions runs `./gradlew build` (with the unit tests) on JDK 25 for every 
 2. **Phase 2: the real stronghold.** Done. Grown like vanilla, endless, every vanilla piece block for block, block palette, doors, chests with vanilla loot, mob spawning, portal rooms with their spawners. (See `DECISIONS.md` for how it got here: first floors and a maze, then vanilla's growth.)
 3. **Phase 3: finding the End.**
    - The marker structure, its tag, and the generator's `findNearestMapStructure` override, so eyes of ender and `/locate` find the nearest portal room.
-   - The extra loot pool: flint and a rare eye of ender.
    - Done when: an eye of ender leads to a portal room, and the End can be reached (checklist 5 and 6).
 4. **Phase 4: polish.**
    - Generator settings in the preset JSON: the hub height and the lowest height, with today's values as defaults. Region size stays fixed, since changing it would move every region.

@@ -109,3 +109,7 @@ Tyce asked how vanilla makes all five of the five-way crossing's doorways work, 
 ## DESIGN.md revised
 
 After Phase 2, `DESIGN.md` was rewritten to describe the stronghold as it is now built (vanilla growth, regions, main corridors) instead of the original floors and maze, and its Phase 3 plan for eyes of ender changed: the generator answers `findNearestMapStructure` itself from the region plans, instead of a `random_spread` structure set, which could not match where the growth puts each portal room. The original version is in git history.
+
+## No extra loot
+
+Tyce chose not to change the loot: the doc's extra pool (flint, and a rare eye of ender) is dropped. Chests now use vanilla's stronghold loot tables directly (`minecraft:chests/stronghold_corridor`, `_crossing` and `_library`), and the mod's own tables, which only existed to add that pool, are gone.

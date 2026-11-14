@@ -1,12 +1,9 @@
 package dev.tyceg.endlessstronghold.world;
 
-import dev.tyceg.endlessstronghold.EndlessStronghold;
 import dev.tyceg.endlessstronghold.layout.Hash;
 import dev.tyceg.endlessstronghold.rooms.Block;
 import dev.tyceg.endlessstronghold.rooms.BlockSink;
-import java.util.Locale;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityTypes;
@@ -16,12 +13,13 @@ import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.StructurePiece;
+import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootTable;
 
 /**
  * Decoration stage: builds the same pieces again and keeps only the blocks
  * with block entities that fall in this chunk. Chests turn like vanilla's
- * structure chests and get their loot table and a seed, so items roll the
+ * structure chests and get vanilla's stronghold loot table and a seed, so items roll the
  * first time a player opens them; the portal room's spawner gets silverfish.
  */
 public final class DecorationSink implements BlockSink {
@@ -40,8 +38,13 @@ public final class DecorationSink implements BlockSink {
 		this.seed = seed;
 	}
 
+	/** Vanilla's own stronghold loot tables, unchanged. */
 	public static ResourceKey<LootTable> lootTable(Block.Loot loot) {
-		return ResourceKey.create(Registries.LOOT_TABLE, EndlessStronghold.id("chests/" + loot.name().toLowerCase(Locale.ROOT)));
+		return switch (loot) {
+			case CORRIDOR -> BuiltInLootTables.STRONGHOLD_CORRIDOR;
+			case CROSSING -> BuiltInLootTables.STRONGHOLD_CROSSING;
+			case LIBRARY -> BuiltInLootTables.STRONGHOLD_LIBRARY;
+		};
 	}
 
 	@Override

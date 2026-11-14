@@ -6,7 +6,7 @@ The full plan is in [DESIGN.md](DESIGN.md); changes to it are in [DECISIONS.md](
 
 ## Status
 
-**Phase 2 of 4: the real stronghold.** The stronghold grows the way vanilla grows one, piece by piece, with vanilla's rooms block for block, vanilla's weights, limits and rules, and every doorway at its real height. It never ends: the world is split into 256 x 256 block regions, each growing its own stronghold, joined into one by main corridors made of vanilla's pieces. Each region has a portal room; eyes of ender finding it, and the extra loot, come in Phase 3.
+**Phase 2 of 4: the real stronghold.** The stronghold grows the way vanilla grows one, piece by piece, with vanilla's rooms block for block, vanilla's weights, limits and rules, and every doorway at its real height. It never ends: the world is split into 256 x 256 block regions, each growing its own stronghold, joined into one by main corridors made of vanilla's pieces. Each region has a portal room; eyes of ender finding it come in Phase 3. Chests hold vanilla's stronghold loot.
 
 ## Playing it
 
